@@ -111,24 +111,24 @@ class HopfNetwork():
         # 3    2
 
         self.PHI_trot = np.float32([[0, np.pi, np.pi, 0],
-                                    [-np.pi, 0, 0, -np.pi],
-                                    [-np.pi, 0, 0, -np.pi],
+                                    [np.pi, 0, 0, np.pi],
+                                    [np.pi, 0, 0, np.pi],
                                     [0, np.pi, np.pi, 0]])
 
-        self.PHI_walk = np.float32([[0, 0, 0, 0],
-                                    [0, 0, 0, 0],
-                                    [0, 0, 0, 0],
-                                    [0, 0, 0, 0]])
+        self.PHI_walk = np.float32([[0, np.pi, 3 * np.pi / 2, np.pi / 2],
+                                    [np.pi, 0, np.pi / 2, 3 * np.pi / 2],
+                                    [np.pi / 2, 3 * np.pi / 2, 0, np.pi],
+                                    [3 * np.pi / 2, np.pi / 2, np.pi, 0]])
 
-        self.PHI_bound = np.float32([[0, 0, 0, 0],
-                                     [0, 0, 0, 0],
-                                     [0, 0, 0, 0],
-                                     [0, 0, 0, 0]])
+        self.PHI_bound = np.float32([[0, 0, np.pi, np.pi],
+                                     [0, 0, np.pi, np.pi],
+                                     [np.pi, np.pi, 0, 0],
+                                     [np.pi, np.pi, 0, 0]])
 
-        self.PHI_pace = np.float32([[0, 0, 0, 0],
-                                    [0, 0, 0, 0],
-                                    [0, 0, 0, 0],
-                                    [0, 0, 0, 0]])
+        self.PHI_pace = np.float32([[0, np.pi, 0, np.pi],
+                                    [np.pi, 0, np.pi, 0],
+                                    [0, np.pi, 0, np.pi],
+                                    [np.pi, 0, np.pi, 0]])
 
         if gait == "TROT":
             self.PHI = self.PHI_trot
