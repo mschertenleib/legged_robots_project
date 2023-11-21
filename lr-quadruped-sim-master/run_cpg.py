@@ -68,7 +68,7 @@ TEST_STEPS = int(10 / (TIME_STEP))
 t = np.arange(TEST_STEPS)*TIME_STEP
 
 # [TODO] initialize data structures to save CPG and robot states
-
+cpg_save = np.zeros((4,TEST_STEPS))
 
 ############## Sample Gains
 # joint PD gains
@@ -84,8 +84,8 @@ for j in range(TEST_STEPS):
   # get desired foot positions from CPG 
   xs,zs = cpg.update()
   # [TODO] get current motor angles and velocities for joint PD, see GetMotorAngles(), GetMotorVelocities() in quadruped.py
-  # q = env.robot.GetMotorAngles()
-  # dq = 
+  q = env.robot.GetMotorAngles()
+  dq = env.robot.GetMotorVelocities()
 
   # loop through desired foot positions and calculate torques
   for i in range(4):
@@ -94,18 +94,21 @@ for j in range(TEST_STEPS):
     # get desired foot i pos (xi, yi, zi) in leg frame
     leg_xyz = np.array([xs[i],sideSign[i] * foot_y,zs[i]])
     # call inverse kinematics to get corresponding joint angles (see ComputeInverseKinematics() in quadruped.py)
-    leg_q = np.zeros(3) # [TODO] 
+    leg_q = env.robot.ComputeInverseKinematics(leg_xyz, i) #np.zeros(3) # [TODO] 
     # Add joint PD contribution to tau for leg i (Equation 4)
-    tau += np.zeros(3) # [TODO] 
+    tau += kp * (leg_q - q[3*i:3*i+3]) - kd * dq[3*i:3*i+3] # [TODO]
 
     # add Cartesian PD contribution
     if ADD_CARTESIAN_PD:
       # Get current Jacobian and foot position in leg frame (see ComputeJacobianAndPosition() in quadruped.py)
       # [TODO] 
+      J,pos = env.robot.ComputeJacobianAndPosition(i)
       # Get current foot velocity in leg frame (Equation 2)
       # [TODO] 
+      vel = J @ dq[3*i:3*i+3]
       # Calculate torque contribution from Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
-      tau += np.zeros(3) # [TODO]
+      tau += kpCartesian @ (leg_xyz - pos) - kdCartesian @ vel
+
 
     # Set tau for legi in action vector
     action[3*i:3*i+3] = tau
@@ -114,14 +117,27 @@ for j in range(TEST_STEPS):
   env.step(action) 
 
   # [TODO] save any CPG or robot states
-
+  cpg_save[0,j] = cpg.get_r()
+  cpg_save[1,j] = cpg.get_theta()
+  cpg_save[2,j] = cpg.get_dr()
+  cpg_save[3,j] = cpg.get_dtheta()
 
 
 ##################################################### 
 # PLOTS
 #####################################################
-# example
-# fig = plt.figure()
-# plt.plot(t,joint_pos[1,:], label='FR thigh')
-# plt.legend()
-# plt.show()
+# plot r
+#fig = plt.figure()
+#plt.plot(t,cpg_save[1,:], label='FR thigh')
+#plt.legend()
+#plt.show()
+fig, axs = plt.subplots(2, 2)
+axs[0, 0].plot(t, cpg_save[0,:])
+axs[0, 0].set_title('r')
+axs[0, 1].plot(t, cpg_save[1,:])
+axs[0, 1].set_title('theta')
+axs[1, 0].plot(t, cpg_save[2,:])
+axs[1, 0].set_title('r_dot')
+axs[1, 1].plot(t, cpg_save[3,:])
+axs[1, 1].set_title('theta_dot')
+plt.show()
