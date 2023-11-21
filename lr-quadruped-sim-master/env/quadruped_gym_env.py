@@ -254,7 +254,16 @@ class QuadrupedGymEnv(gym.Env):
       # [TODO] Get observation from robot. What are reasonable measurements we could get on hardware?
       # if using the CPG, you can include states with self._cpg.get_r(), for example
       # 50 is arbitrary
-      self._observation = np.zeros(50)
+      if(self._motor_control_mode == "CPG"):
+        #self._observation = np.zeros(50) PROF EXAMPLE
+        self._observation = np.concatenate((self._cpg.get_r(),self._cpg.get_dr(),self._cpg.get_theta(),self._cpg.get_dtheta))
+      else:
+        #gilles : - foot contacts (4)
+        #         - imu acc(xyz) gyro(xyz) (6)
+        #         - measured and desired torques diff(12)
+        #         - height of each hip (4)
+        #         - body position and orientation (6)
+        self._observation = np.zeros(32)
 
     else:
       raise ValueError("observation space not defined or not intended")
@@ -417,6 +426,7 @@ class QuadrupedGymEnv(gym.Env):
     for i in range(4):
       # get Jacobian and foot position in leg frame for leg i (see ComputeJacobianAndPosition() in quadruped.py)
       # [TODO]
+      [J,pos] = self.robot.ComputeJacobianAndPosition(i)
       # desired foot position i (from RL above)
       Pd = np.zeros(3) # [TODO]
       # desired foot velocity i
