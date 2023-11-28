@@ -45,7 +45,8 @@ from matplotlib import pyplot as plt
 from env.hopf_network import HopfNetwork
 from env.quadruped_gym_env import QuadrupedGymEnv
 
-ADD_CARTESIAN_PD = True
+ADD_CARTESIAN_PD = False
+PLOT = True
 TIME_STEP = 0.001
 foot_y = 0.0838  # this is the hip length
 sideSign = np.array([-1, 1, -1, 1])  # get correct hip sign (body right is negative)
@@ -60,14 +61,40 @@ env = QuadrupedGymEnv(render=True,  # visualize
                       # record_video=True
                       )
 
+gait = "WALK"
+
+if gait == "TROT":
+    mu = 1
+    omega_swing = 8 * 2 * np.pi
+    omega_stance = 3 * 2 * np.pi
+elif gait == "PACE":
+    mu = 2
+    omega_swing = 6 * 2 * np.pi
+    omega_stance = 3 * 2 * np.pi
+elif gait == "BOUND":
+    mu = 1
+    omega_swing = 3 * 2 * np.pi
+    omega_stance = 2 * 2 * np.pi
+elif gait == "WALK":
+    mu = 3
+    omega_swing = 10 * 2 * np.pi
+    omega_stance = 5 * 2 * np.pi
+else:
+    raise ValueError(gait + ' not implemented.')
+
 # initialize Hopf Network, supply gait
-cpg = HopfNetwork(time_step=TIME_STEP, gait="WALK", mu=3, omega_swing=10 * 2 * np.pi, omega_stance=5 * 2 * np.pi)
+cpg = HopfNetwork(time_step=TIME_STEP,
+                  gait=gait,
+                  mu=mu,
+                  omega_swing=omega_swing,
+                  omega_stance=omega_stance)
 
 TEST_DURATION = 3
 TEST_STEPS = int(TEST_DURATION / TIME_STEP)
 t = np.arange(TEST_STEPS) * TIME_STEP
 
-joint_pos = np.zeros((12, TEST_STEPS))
+if PLOT:
+    joint_pos = np.zeros((12, TEST_STEPS))
 
 # joint PD gains
 kp = np.array([100, 100, 100])
@@ -112,21 +139,23 @@ for j in range(TEST_STEPS):
     # send torques to robot and simulate TIME_STEP seconds
     env.step(action)
 
-    joint_pos[:, j] = q
+    if PLOT:
+        joint_pos[:, j] = q
 
 #####################################################
 # PLOTS
 #####################################################
 
-plt.figure()
-plt.plot(t, joint_pos[3 * 0 + 1, :], label='FR thigh')
-plt.plot(t, joint_pos[3 * 1 + 1, :], label='FL thigh')
-plt.plot(t, joint_pos[3 * 2 + 1, :], label='RR thigh')
-plt.plot(t, joint_pos[3 * 3 + 1, :], label='RL thigh')
-plt.legend()
-plt.figure()
-plt.plot(t, joint_pos[3 * 0 + 0, :], label='FR hip')
-plt.plot(t, joint_pos[3 * 0 + 1, :], label='FR thigh')
-plt.plot(t, joint_pos[3 * 0 + 2, :], label='FR calf')
-plt.legend()
-plt.show()
+if PLOT:
+    plt.figure()
+    plt.plot(t, joint_pos[3 * 0 + 1, :], label='FR thigh')
+    plt.plot(t, joint_pos[3 * 1 + 1, :], label='FL thigh')
+    plt.plot(t, joint_pos[3 * 2 + 1, :], label='RR thigh')
+    plt.plot(t, joint_pos[3 * 3 + 1, :], label='RL thigh')
+    plt.legend()
+    plt.figure()
+    plt.plot(t, joint_pos[3 * 0 + 0, :], label='FR hip')
+    plt.plot(t, joint_pos[3 * 0 + 1, :], label='FR thigh')
+    plt.plot(t, joint_pos[3 * 0 + 2, :], label='FR calf')
+    plt.legend()
+    plt.show()
