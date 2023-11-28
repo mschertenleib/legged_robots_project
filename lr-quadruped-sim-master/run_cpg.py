@@ -45,7 +45,7 @@ from matplotlib import pyplot as plt
 from env.hopf_network import HopfNetwork
 from env.quadruped_gym_env import QuadrupedGymEnv
 
-ADD_CARTESIAN_PD = False
+ADD_CARTESIAN_PD = True
 TIME_STEP = 0.001
 foot_y = 0.0838  # this is the hip length
 sideSign = np.array([-1, 1, -1, 1])  # get correct hip sign (body right is negative)
@@ -61,21 +61,20 @@ env = QuadrupedGymEnv(render=True,  # visualize
                       )
 
 # initialize Hopf Network, supply gait
-cpg = HopfNetwork(time_step=TIME_STEP, gait="WALK")
+cpg = HopfNetwork(time_step=TIME_STEP, gait="WALK", mu=3, omega_swing=10 * 2 * np.pi, omega_stance=5 * 2 * np.pi)
 
-TEST_DURATION = 2
+TEST_DURATION = 3
 TEST_STEPS = int(TEST_DURATION / TIME_STEP)
 t = np.arange(TEST_STEPS) * TIME_STEP
 
 joint_pos = np.zeros((12, TEST_STEPS))
 
-############## Sample Gains
 # joint PD gains
 kp = np.array([100, 100, 100])
 kd = np.array([2, 2, 2])
 # Cartesian PD gains
-kpCartesian = np.diag([500] * 3)
-kdCartesian = np.diag([20] * 3)
+kpCartesian = np.diag([50] * 3)
+kdCartesian = np.diag([2] * 3)
 
 for j in range(TEST_STEPS):
     # initialize torque array to send to motors

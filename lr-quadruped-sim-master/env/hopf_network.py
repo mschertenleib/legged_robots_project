@@ -100,7 +100,6 @@ class HopfNetwork():
 
     def _set_gait(self, gait):
         """ For coupling oscillators in phase space.
-        [TODO] update all coupling matrices
         """
 
         # 1     0     0: Front right
@@ -151,7 +150,6 @@ class HopfNetwork():
             self._integrate_hopf_equations_rl()
 
         # map CPG variables to Cartesian foot xz positions (Equations 8, 9)
-        # [TODO]
         x = -self._des_step_len * self.X[0, :] * np.cos(self.X[1, :])
         sin_theta = np.sin(self.X[1, :])
         z = np.zeros(4)
@@ -180,12 +178,11 @@ class HopfNetwork():
         # loop through each leg's oscillator
         for i in range(4):
             # get r_i, theta_i from X
-            r, theta = X[:, i]  # [TODO]
+            r, theta = X[:, i]
             # compute r_dot (Equation 6)
-            r_dot = self._alpha * (self._mu - r * r) * r  # [TODO]
+            r_dot = self._alpha * (self._mu - r * r) * r
             # determine whether oscillator i is in swing or stance phase to set natural frequency omega_swing or
             # omega_stance (see Section 3)
-            # [TODO]
             if 0 <= theta <= np.pi:
                 theta_dot = self._omega_swing
             elif np.pi < theta <= 2 * np.pi:
@@ -198,13 +195,13 @@ class HopfNetwork():
                 coupling = 0.0
                 for j in range(4):
                     coupling += X[0, j] * self._coupling_strength * np.sin(X[1, j] - theta - self.PHI[i, j])
-                theta_dot += coupling  # [TODO]
+                theta_dot += coupling
 
             # set X_dot[:,i]
             X_dot[:, i] = [r_dot, theta_dot]
 
         # integrate
-        self.X = X + (X_dot_prev + X_dot) * self._dt / 2  # [TODO]
+        self.X = X + (X_dot_prev + X_dot) * self._dt / 2
         self.X_dot = X_dot
         # mod phase variables to keep between 0 and 2pi
         self.X[1, :] = self.X[1, :] % (2 * np.pi)
@@ -247,9 +244,9 @@ class HopfNetwork():
             # get r_i, theta_i from X
             r, theta = X[:, i]
             # amplitude (use mu from RL, i.e. self._mu_rl[i])
-            r_dot = 0  # [TODO]
+            r_dot = self._alpha * (self._mu_rl[i] - r * r) * r
             # phase (use omega from RL, i.e. self._omega_rl[i])
-            theta_dot = 0  # [TODO]
+            theta_dot = self._omega_rl[i]
 
             X_dot[:, i] = [r_dot, theta_dot]
 
