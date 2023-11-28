@@ -63,11 +63,11 @@ env = QuadrupedGymEnv(render=True,  # visualize
 # initialize Hopf Network, supply gait
 cpg = HopfNetwork(time_step=TIME_STEP, gait="WALK")
 
-TEST_STEPS = int(10 / TIME_STEP)
+TEST_DURATION = 2
+TEST_STEPS = int(TEST_DURATION / TIME_STEP)
 t = np.arange(TEST_STEPS) * TIME_STEP
 
-# [TODO] initialize data structures to save CPG and robot states
-
+joint_pos = np.zeros((12, TEST_STEPS))
 
 ############## Sample Gains
 # joint PD gains
@@ -82,8 +82,7 @@ for j in range(TEST_STEPS):
     action = np.zeros(12)
     # get desired foot positions from CPG
     xs, zs = cpg.update()
-    # [TODO] get current motor angles and velocities for joint PD, see GetMotorAngles(), GetMotorVelocities() in
-    #  quadruped.py
+
     q = env.robot.GetMotorAngles()
     dq = env.robot.GetMotorVelocities()
 
@@ -106,7 +105,7 @@ for j in range(TEST_STEPS):
             foot_vel = J @ dq[i * 3:i * 3 + 3]
             # Calculate torque contribution from Cartesian PD (Equation 5) [Make sure you are using matrix
             # multiplications]
-            tau += kpCartesian @ (leg_xyz - foot_pos) + kdCartesian @ (-foot_vel)  # [TODO]
+            tau += kpCartesian @ (leg_xyz - foot_pos) + kdCartesian @ (-foot_vel)
 
         # Set tau for legi in action vector
         action[3 * i:3 * i + 3] = tau
@@ -114,13 +113,21 @@ for j in range(TEST_STEPS):
     # send torques to robot and simulate TIME_STEP seconds
     env.step(action)
 
-    # [TODO] save any CPG or robot states
+    joint_pos[:, j] = q
 
 #####################################################
 # PLOTS
 #####################################################
-# example
-# fig = plt.figure()
-# plt.plot(t,joint_pos[1,:], label='FR thigh')
-# plt.legend()
-# plt.show()
+
+plt.figure()
+plt.plot(t, joint_pos[3 * 0 + 1, :], label='FR thigh')
+plt.plot(t, joint_pos[3 * 1 + 1, :], label='FL thigh')
+plt.plot(t, joint_pos[3 * 2 + 1, :], label='RR thigh')
+plt.plot(t, joint_pos[3 * 3 + 1, :], label='RL thigh')
+plt.legend()
+plt.figure()
+plt.plot(t, joint_pos[3 * 0 + 0, :], label='FR hip')
+plt.plot(t, joint_pos[3 * 0 + 1, :], label='FR thigh')
+plt.plot(t, joint_pos[3 * 0 + 2, :], label='FR calf')
+plt.legend()
+plt.show()
