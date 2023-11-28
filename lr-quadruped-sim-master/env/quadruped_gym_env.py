@@ -30,6 +30,7 @@
 
 """This file implements the gym environment for a quadruped. """
 import os, inspect
+import sys
 
 # so we can import files
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -472,9 +473,9 @@ class QuadrupedGymEnv(gym.Env):
             z = zs[i]
 
             # call inverse kinematics to get corresponding joint angles
-            q_des = np.zeros(3)  # [TODO]
+            q_des = self.robot.ComputeInverseKinematics(i, np.array([x, y, z]))
             # Add joint PD contribution to tau
-            tau = np.zeros(3)  # [TODO]
+            tau = kp * (q_des - q[i * 3:i * 3 + 3]) + kd * (-dq[i * 3:i * 3 + 3])
 
             # add Cartesian PD contribution (as you wish)
             # tau +=
