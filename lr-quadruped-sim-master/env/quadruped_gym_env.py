@@ -230,8 +230,19 @@ class QuadrupedGymEnv(gym.Env):
             # [TODO] Set observation upper and lower ranges. What are reasonable limits?
             # Note 50 is arbitrary below, you may have more or less
             # if using CPG-RL, remember to include limits on these
-            observation_high = (np.zeros(50) + OBSERVATION_EPS)
-            observation_low = (np.zeros(50) - OBSERVATION_EPS)
+            UPPER_R = [1.]*4
+            LOWER_R = [0.]*4
+            UPPER_DR = [20.]*4
+            LOWER_DR = [0.]*4
+            UPPER_THETA = [6.]*2
+            LOWER_THETA = [0.]*2
+            UPPER_DTHETA = [40.]*2
+            LOWER_DTHETA = [0.]*2
+
+            observation_high = (np.concatenate((UPPER_R,UPPER_DR,UPPER_THETA,UPPER_DTHETA)) + OBSERVATION_EPS)
+            observation_low = (np.concatenate((LOWER_R,LOWER_DR,LOWER_THETA,LOWER_DTHETA)) - OBSERVATION_EPS)
+            #observation_high = (np.zeros(50) + OBSERVATION_EPS)
+            #observation_low = (np.zeros(50) - OBSERVATION_EPS)
         else:
             raise ValueError("observation space not defined or not intended")
 
@@ -256,10 +267,14 @@ class QuadrupedGymEnv(gym.Env):
                                                 self.robot.GetMotorVelocities(),
                                                 self.robot.GetBaseOrientation()))
         elif self._observation_space_mode == "LR_COURSE_OBS":
+            self._observation = np.concatenate((self.robot.get_r(),
+                                                self.robot.get_dr(),
+                                                self.robot.get_theta(),
+                                                self.robot.get_dtheta()))
             # [TODO] Get observation from robot. What are reasonable measurements we could get on hardware?
             # if using the CPG, you can include states with self._cpg.get_r(), for example
             # 50 is arbitrary
-            self._observation = np.zeros(50)
+            # self._observation = np.zeros(50)
 
         else:
             raise ValueError("observation space not defined or not intended")
@@ -365,6 +380,7 @@ class QuadrupedGymEnv(gym.Env):
     def _reward_lr_course(self):
         """ Implement your reward function here. How will you improve upon the above? """
         # [TODO] add your reward function.
+        
         return 0
 
     def _reward(self):
@@ -421,17 +437,19 @@ class QuadrupedGymEnv(gym.Env):
         qd = self.robot.GetMotorVelocities()
 
         action = np.zeros(12)
-        for i in range(4):
+        for i in range(4):# [TODO]
             # get Jacobian and foot position in leg frame for leg i (see ComputeJacobianAndPosition() in quadruped.py)
-            # [TODO]
+            J, foot_pos = self.robot.ComputeJacobianAndPosition(i)
             # desired foot position i (from RL above)
-            Pd = np.zeros(3)  # [TODO]
+            Pd = des_foot_pos[3 * i:3 * i + 3] #np.zeros(3)  # [TODO]
             # desired foot velocity i
-            vd = np.zeros(3)
+            vd = J @ des_foot_pos[3 * i:3 * i + 3]  # np.zeros(3)  # [TODO]
             # foot velocity in leg frame i (Equation 2)
+            v = J @ qd[i * 3:i * 3 + 3]  # np.zeros(3)  # [TODO]
             # [TODO]
             # calculate torques with Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
-            tau = np.zeros(3)  # [TODO]
+            tau = kpCartesian @ (Pd - foot_pos) + kdCartesian @ (vd - v)  # np.zeros(3)  # [TODO]
+            #tau = np.zeros(3)  # [TODO]
 
             action[3 * i:3 * i + 3] = tau
 
@@ -472,13 +490,12 @@ class QuadrupedGymEnv(gym.Env):
             z = zs[i]
 
             # call inverse kinematics to get corresponding joint angles
-            q_des = np.zeros(3)  # [TODO]
+            q_des = self.robot.ComputeInverseKinematics(i, np.array([x, y, z])) #np.zeros(3)  # [TODO]
             # Add joint PD contribution to tau
-            tau = np.zeros(3)  # [TODO]
+            tau += kp * (q_des - q[i * 3:i * 3 + 3]) + kd * (-dq[i * 3:i * 3 + 3])  # np.zeros(3)  # [TODO]
 
             # add Cartesian PD contribution (as you wish)
-            # tau +=
-
+            # tau += 
             action[3 * i:3 * i + 3] = tau
 
         return action
@@ -621,8 +638,8 @@ class QuadrupedGymEnv(gym.Env):
             time.sleep(0.2)
         for _ in range(1000):
             self.robot.ApplyAction(init_motor_angles)
-            if self._is_render:
-                time.sleep(0.001)
+            # if self._is_render:
+            #     time.sleep(0.001)
             self._pybullet_client.stepSimulation()
 
         # set control mode back
