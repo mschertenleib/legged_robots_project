@@ -30,7 +30,6 @@
 
 """This file implements the gym environment for a quadruped. """
 import os, inspect
-import sys
 
 # so we can import files
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -231,8 +230,19 @@ class QuadrupedGymEnv(gym.Env):
             # [TODO] Set observation upper and lower ranges. What are reasonable limits?
             # Note 50 is arbitrary below, you may have more or less
             # if using CPG-RL, remember to include limits on these
-            observation_high = (np.zeros(50) + OBSERVATION_EPS)
-            observation_low = (np.zeros(50) - OBSERVATION_EPS)
+            UPPER_R = [1.]*4
+            LOWER_R = [0.]*4
+            UPPER_DR = [20.]*4
+            LOWER_DR = [0.]*4
+            UPPER_THETA = [6.]*4
+            LOWER_THETA = [0.]*4
+            UPPER_DTHETA = [40.]*4
+            LOWER_DTHETA = [0.]*4
+
+            observation_high = (np.concatenate((UPPER_R,UPPER_DR,UPPER_THETA,UPPER_DTHETA)) + OBSERVATION_EPS)
+            observation_low = (np.concatenate((LOWER_R,LOWER_DR,LOWER_THETA,LOWER_DTHETA)) - OBSERVATION_EPS)
+            #observation_high = (np.zeros(50) + OBSERVATION_EPS)
+            #observation_low = (np.zeros(50) - OBSERVATION_EPS)
         else:
             raise ValueError("observation space not defined or not intended")
 
@@ -257,10 +267,14 @@ class QuadrupedGymEnv(gym.Env):
                                                 self.robot.GetMotorVelocities(),
                                                 self.robot.GetBaseOrientation()))
         elif self._observation_space_mode == "LR_COURSE_OBS":
+            self._observation = np.concatenate((self._cpg.get_r(),
+                                                self._cpg.get_dr(),
+                                                self._cpg.get_theta(),
+                                                self._cpg.get_dtheta()))
             # [TODO] Get observation from robot. What are reasonable measurements we could get on hardware?
             # if using the CPG, you can include states with self._cpg.get_r(), for example
             # 50 is arbitrary
-            self._observation = np.zeros(50)
+            # self._observation = np.zeros(50)
 
         else:
             raise ValueError("observation space not defined or not intended")
@@ -364,9 +378,36 @@ class QuadrupedGymEnv(gym.Env):
         return max(reward, 0)  # keep rewards positive
 
     def _reward_lr_course(self):
-        """ Implement your reward function here. How will you improve upon the above? """
-        # [TODO] add your reward function.
-        return 0
+        """ Reward function for LR_COURSE_TASK. [TODO]"""
+
+        # Parameters to tune
+        direction_reward_weight = 1.0
+        energy_penalty_weight = 0.008
+        orientation_penalty_weight = 0.1
+
+        # Desired running direction - can be dynamically set or fixed
+        desired_direction = np.array([1.0, 0.0])  # Example: right along the x-axis
+
+        # Current velocity and orientation
+        current_velocity = self.robot.GetBaseLinearVelocity()[:2]  # Get x, y components
+        current_orientation = self.robot.GetBaseOrientation()
+
+        # Reward for moving in the desired direction
+        direction_reward = direction_reward_weight * np.dot(unit_vector(current_velocity), desired_direction)
+
+        # Penalize for energy consumption
+        energy_penalty = 0
+        for tau, vel in zip(self._dt_motor_torques, self._dt_motor_velocities):
+            energy_penalty += np.abs(np.dot(tau, vel)) * self._time_step
+        energy_penalty *= energy_penalty_weight
+
+        # Penalize for deviation in orientation
+        orientation_penalty = orientation_penalty_weight * np.linalg.norm(current_orientation - np.array([0, 0, 0, 1]))
+
+        # Calculate total reward
+        reward = direction_reward - energy_penalty - orientation_penalty
+
+        return max(reward, 0)  # Ensure reward is non-negative
 
     def _reward(self):
         """ Get reward depending on task"""
@@ -422,17 +463,19 @@ class QuadrupedGymEnv(gym.Env):
         qd = self.robot.GetMotorVelocities()
 
         action = np.zeros(12)
-        for i in range(4):
+        for i in range(4):# [TODO]
             # get Jacobian and foot position in leg frame for leg i (see ComputeJacobianAndPosition() in quadruped.py)
-            J, pos = self.robot.ComputeJacobianAndPosition(i)
+            J, foot_pos = self.robot.ComputeJacobianAndPosition(i)
             # desired foot position i (from RL above)
-            Pd = des_foot_pos[i * 3:i * 3 + 3]
+            Pd = des_foot_pos[3 * i:3 * i + 3] #np.zeros(3)  # [TODO]
             # desired foot velocity i
-            vd = np.zeros(3)
+            vd = J @ des_foot_pos[3 * i:3 * i + 3]  # np.zeros(3)  # [TODO]
             # foot velocity in leg frame i (Equation 2)
-            v = J @ qd[i * 3:i * 3 + 3]
+            v = J @ qd[i * 3:i * 3 + 3]  # np.zeros(3)  # [TODO]
+            # [TODO]
             # calculate torques with Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
-            tau = kpCartesian @ (Pd - pos) + kdCartesian @ (vd - v)
+            tau = kpCartesian @ (Pd - foot_pos) + kdCartesian @ (vd - v)  # np.zeros(3)  # [TODO]
+            #tau = np.zeros(3)  # [TODO]
 
             action[3 * i:3 * i + 3] = tau
 
@@ -473,13 +516,12 @@ class QuadrupedGymEnv(gym.Env):
             z = zs[i]
 
             # call inverse kinematics to get corresponding joint angles
-            q_des = self.robot.ComputeInverseKinematics(i, np.array([x, y, z]))
+            q_des = self.robot.ComputeInverseKinematics(i, np.array([x, y, z])) #np.zeros(3)  # [TODO]
             # Add joint PD contribution to tau
-            tau = kp * (q_des - q[i * 3:i * 3 + 3]) + kd * (-dq[i * 3:i * 3 + 3])
+            tau += kp * (q_des - q[i * 3:i * 3 + 3]) + kd * (-dq[i * 3:i * 3 + 3])  # np.zeros(3)  # [TODO]
 
             # add Cartesian PD contribution (as you wish)
-            # tau +=
-
+            # tau += 
             action[3 * i:3 * i + 3] = tau
 
         return action
