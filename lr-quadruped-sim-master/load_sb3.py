@@ -42,6 +42,9 @@ from sys import platform
 # else: # linux
 #   matplotlib.use('TkAgg')
 
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+
 # stable-baselines3
 from stable_baselines3.common.monitor import load_results 
 from stable_baselines3.common.vec_env import VecNormalize
@@ -58,7 +61,7 @@ from utils.file_utils import get_latest_model, load_all_results
 LEARNING_ALG = "PPO"
 interm_dir = "./logs/intermediate_models/"
 # path to saved models, i.e. interm_dir + '121321105810'
-log_dir = interm_dir + '111422201103'
+log_dir = interm_dir + '112823220404'
 
 # initialize env configs (render at test time)
 # check ideal conditions, as well as robustness to UNSEEN noise during training
@@ -107,6 +110,6 @@ for i in range(2000):
 
     # [TODO] save data from current robot states for plots 
     # To get base position, for example: env.envs[0].env.robot.GetBasePosition() 
-    #
     
+
 # [TODO] make plots:
