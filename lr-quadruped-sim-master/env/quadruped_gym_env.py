@@ -333,7 +333,7 @@ class QuadrupedGymEnv(gym.Env):
                  + drift_reward \
                  - 0.01 * energy_reward \
                  - 0.1 * np.linalg.norm(self.robot.GetBaseOrientation() - np.array([0, 0, 0, 1]))
-        print(f'reward: {reward}')
+        #print(f'reward: {reward}')
         return max(reward, 0)  # keep rewards positive
 
     def get_distance_and_angle_to_goal(self):
@@ -406,7 +406,7 @@ class QuadrupedGymEnv(gym.Env):
 
         # Calculate total reward
         reward = direction_reward - energy_penalty - orientation_penalty
-        print(f'reward: {reward}')
+        #print(f'reward: {reward}')
         return max(reward, 0)  # Ensure reward is non-negative
 
     def _reward(self):
