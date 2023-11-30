@@ -333,7 +333,7 @@ class QuadrupedGymEnv(gym.Env):
                  + drift_reward \
                  - 0.01 * energy_reward \
                  - 0.1 * np.linalg.norm(self.robot.GetBaseOrientation() - np.array([0, 0, 0, 1]))
-
+        print(f'reward: {reward}')
         return max(reward, 0)  # keep rewards positive
 
     def get_distance_and_angle_to_goal(self):
@@ -406,7 +406,7 @@ class QuadrupedGymEnv(gym.Env):
 
         # Calculate total reward
         reward = direction_reward - energy_penalty - orientation_penalty
-
+        print(f'reward: {reward}')
         return max(reward, 0)  # Ensure reward is non-negative
 
     def _reward(self):
@@ -470,14 +470,15 @@ class QuadrupedGymEnv(gym.Env):
             Pd = des_foot_pos[3 * i:3 * i + 3] #np.zeros(3)  # [TODO]
             # desired foot velocity i
             vd = J @ des_foot_pos[3 * i:3 * i + 3]  # np.zeros(3)  # [TODO]
+            vd = np.zeros(3)
             # foot velocity in leg frame i (Equation 2)
             v = J @ qd[i * 3:i * 3 + 3]  # np.zeros(3)  # [TODO]
             # [TODO]
             # calculate torques with Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
             tau = kpCartesian @ (Pd - foot_pos) + kdCartesian @ (vd - v)  # np.zeros(3)  # [TODO]
             #tau = np.zeros(3)  # [TODO]
-
-            action[3 * i:3 * i + 3] = tau
+            #print(f'tau Cartesian PD: {tau}')
+            action[3 * i:3 * i + 3] = J.T @ tau
 
         return action
 
@@ -518,7 +519,7 @@ class QuadrupedGymEnv(gym.Env):
             # call inverse kinematics to get corresponding joint angles
             q_des = self.robot.ComputeInverseKinematics(i, np.array([x, y, z])) #np.zeros(3)  # [TODO]
             # Add joint PD contribution to tau
-            tau += kp * (q_des - q[i * 3:i * 3 + 3]) + kd * (-dq[i * 3:i * 3 + 3])  # np.zeros(3)  # [TODO]
+            tau += (kp * (q_des - q[i * 3:i * 3 + 3]) + kd * (-dq[i * 3:i * 3 + 3]))  # np.zeros(3)  # [TODO]
 
             # add Cartesian PD contribution (as you wish)
             # tau += 
