@@ -50,7 +50,7 @@ NUM_ENVS = 1  # how many pybullet environments to create for data collection
 USE_GPU = False  # make sure to install all necessary drivers
 
 # after implementing, you will want to test how well the agent learns with your MDP: 
-env_configs = {"motor_control_mode":"CARTESIAN_PD",
+env_configs = {"motor_control_mode":"CPG",
                 "task_env": "FWD_LOCOMOTION", #  "LR_COURSE_TASK",
                 "observation_space_mode": "DEFAULT"}
 #env_configs = {}
