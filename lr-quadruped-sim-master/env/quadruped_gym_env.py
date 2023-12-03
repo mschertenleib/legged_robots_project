@@ -239,8 +239,13 @@ class QuadrupedGymEnv(gym.Env):
             UPPER_DTHETA = [40.]*4
             LOWER_DTHETA = [0.]*4
 
-            observation_high = (np.concatenate((UPPER_R,UPPER_DR,UPPER_THETA,UPPER_DTHETA)) + OBSERVATION_EPS)
-            observation_low = (np.concatenate((LOWER_R,LOWER_DR,LOWER_THETA,LOWER_DTHETA)) - OBSERVATION_EPS)
+
+            observation_high = (np.concatenate((UPPER_R,UPPER_DR,UPPER_THETA,UPPER_DTHETA,self._robot_config.UPPER_ANGLE_JOINT,
+                                                self._robot_config.VELOCITY_LIMITS,
+                                                np.array([1.0] * 4))) + OBSERVATION_EPS)
+            observation_low = (np.concatenate((LOWER_R,LOWER_DR,LOWER_THETA,LOWER_DTHETA,self._robot_config.LOWER_ANGLE_JOINT,
+                                               -self._robot_config.VELOCITY_LIMITS,
+                                               np.array([-1.0] * 4))) - OBSERVATION_EPS)
             #observation_high = (np.zeros(50) + OBSERVATION_EPS)
             #observation_low = (np.zeros(50) - OBSERVATION_EPS)
         else:
@@ -270,7 +275,10 @@ class QuadrupedGymEnv(gym.Env):
             self._observation = np.concatenate((self._cpg.get_r(),
                                                 self._cpg.get_dr(),
                                                 self._cpg.get_theta(),
-                                                self._cpg.get_dtheta()))
+                                                self._cpg.get_dtheta(),
+                                                self.robot.GetMotorAngles(),
+                                                self.robot.GetMotorVelocities(),
+                                                self.robot.GetBaseOrientation()))
             # [TODO] Get observation from robot. What are reasonable measurements we could get on hardware?
             # if using the CPG, you can include states with self._cpg.get_r(), for example
             # 50 is arbitrary

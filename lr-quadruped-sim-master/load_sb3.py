@@ -61,21 +61,26 @@ from utils.file_utils import get_latest_model, load_all_results
 LEARNING_ALG = "PPO"
 interm_dir = "./logs/intermediate_models/"
 # path to saved models, i.e. interm_dir + '121321105810'
-log_dir = interm_dir + '113023174203'
+log_dir = interm_dir + '120223123703'
 
 # initialize env configs (render at test time)
 # check ideal conditions, as well as robustness to UNSEEN noise during training
-env_config = {}
+env_config = {"motor_control_mode":"CPG",
+                "task_env": "FWD_LOCOMOTION", #  "LR_COURSE_TASK",
+                "observation_space_mode": "LR_COURSE_OBS"}
+
 env_config['render'] = True
 env_config['record_video'] = False
 env_config['add_noise'] = False 
+
+
 # env_config['competition_env'] = True
 
 # get latest model and normalization stats, and plot 
 stats_path = os.path.join(log_dir, "vec_normalize.pkl")
 model_name = get_latest_model(log_dir)
 print("model_name", model_name)
-model_name = r'C:\Users\naeld\OneDrive - epfl.ch\EPFL_STUDIES\MA3 - 2023\Legged robotics\Prog\Project2\quadruped_locomotion\lr-quadruped-sim-master\logs\intermediate_models\113023174203\rl_model_1980000_steps.zip'
+model_name = r'C:\Users\naeld\OneDrive - epfl.ch\EPFL_STUDIES\MA3 - 2023\Legged robotics\Prog\Project2\quadruped_locomotion\lr-quadruped-sim-master\logs\intermediate_models\120223123703\rl_model_3990000_steps.zip'
 print("model_name", model_name)
 
 monitor_results = load_results(log_dir)
@@ -105,6 +110,7 @@ episode_reward = 0
 
 for i in range(2000):
     action, _states = model.predict(obs,deterministic=False) # sample at test time? ([TODO]: test)
+    #print('action', action.shape)
     obs, rewards, dones, info = env.step(action)
     episode_reward += rewards
     if dones:
