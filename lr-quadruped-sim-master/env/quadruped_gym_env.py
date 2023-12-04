@@ -387,11 +387,13 @@ class QuadrupedGymEnv(gym.Env):
 
     def _reward_lr_course(self):
         """ Reward function for LR_COURSE_TASK. [TODO]"""
-
+        des_vel_x = 4
         # Parameters to tune
         direction_reward_weight = 1.0
         energy_penalty_weight = 0.008
         orientation_penalty_weight = 0.1
+
+        vel_tracking_reward = 0.05 * np.exp(-1 / 0.25 * (self.robot.GetBaseLinearVelocity()[0] - des_vel_x) ** 2)
 
         # Desired running direction - can be dynamically set or fixed
         desired_direction = np.array([1.0, 0.0])  # Example: right along the x-axis
@@ -403,6 +405,12 @@ class QuadrupedGymEnv(gym.Env):
         # Reward for moving in the desired direction
         direction_reward = direction_reward_weight * np.dot(unit_vector(current_velocity), desired_direction)
 
+
+        # don't drift laterally
+        drift_reward = -0.01 * abs(self.robot.GetBasePosition()[1])
+
+        # Yaw
+        yaw_reward = -0.2 * np.abs(self.robot.GetBaseOrientationRollPitchYaw()[2])
         # Penalize for energy consumption
         energy_penalty = 0
         for tau, vel in zip(self._dt_motor_torques, self._dt_motor_velocities):
@@ -413,7 +421,7 @@ class QuadrupedGymEnv(gym.Env):
         orientation_penalty = orientation_penalty_weight * np.linalg.norm(current_orientation - np.array([0, 0, 0, 1]))
 
         # Calculate total reward
-        reward = direction_reward - energy_penalty - orientation_penalty
+        reward = vel_tracking_reward + direction_reward - energy_penalty - orientation_penalty + yaw_reward + drift_reward
         #print(f'reward: {reward}')
         return max(reward, 0)  # Ensure reward is non-negative
 

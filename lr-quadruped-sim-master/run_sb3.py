@@ -51,7 +51,7 @@ USE_GPU = False  # make sure to install all necessary drivers
 
 # after implementing, you will want to test how well the agent learns with your MDP: 
 env_configs = {"motor_control_mode":"CPG",
-                "task_env": "FWD_LOCOMOTION", #  "LR_COURSE_TASK",
+                "task_env": "LR_COURSE_TASK", #  "LR_COURSE_TASK",
                 "observation_space_mode": "LR_COURSE_OBS"}
 #env_configs = {}
 
