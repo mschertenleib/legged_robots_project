@@ -45,83 +45,117 @@ from matplotlib import pyplot as plt
 from env.hopf_network import HopfNetwork
 from env.quadruped_gym_env import QuadrupedGymEnv
 
-
-ADD_CARTESIAN_PD = True
+ADD_CARTESIAN_PD = False
+PLOT = False
 TIME_STEP = 0.001
-foot_y = 0.0838 # this is the hip length 
-sideSign = np.array([-1, 1, -1, 1]) # get correct hip sign (body right is negative)
+foot_y = 0.0838  # this is the hip length
+sideSign = np.array([-1, 1, -1, 1])  # get correct hip sign (body right is negative)
 
-env = QuadrupedGymEnv(render=True,              # visualize
-                    on_rack=False,              # useful for debugging! 
-                    isRLGymInterface=False,     # not using RL
-                    time_step=TIME_STEP,
-                    action_repeat=1,
-                    motor_control_mode="TORQUE",
-                    add_noise=False,    # start in ideal conditions
-                    # record_video=True
-                    )
+env = QuadrupedGymEnv(render=True,  # visualize
+                      on_rack=False,  # useful for debugging!
+                      isRLGymInterface=False,  # not using RL
+                      time_step=TIME_STEP,
+                      action_repeat=1,
+                      motor_control_mode="TORQUE",
+                      add_noise=False,  # start in ideal conditions
+                      # record_video=True
+                      )
+
+gait = "BOUND"
+
+if gait == "TROT":
+    mu = 1
+    omega_swing = 8 * 2 * np.pi
+    omega_stance = 3 * 2 * np.pi
+elif gait == "PACE":
+    mu = 2
+    omega_swing = 6 * 2 * np.pi
+    omega_stance = 3 * 2 * np.pi
+elif gait == "BOUND":
+    mu = 1
+    omega_swing = 3 * 2 * np.pi
+    omega_stance = 2 * 2 * np.pi
+elif gait == "WALK":
+    mu = 3
+    omega_swing = 10 * 2 * np.pi
+    omega_stance = 5 * 2 * np.pi
+else:
+    raise ValueError(gait + ' not implemented.')
 
 # initialize Hopf Network, supply gait
-cpg = HopfNetwork(time_step=TIME_STEP)
+cpg = HopfNetwork(time_step=TIME_STEP,
+                  gait=gait,
+                  mu=mu,
+                  omega_swing=omega_swing,
+                  omega_stance=omega_stance)
 
-TEST_STEPS = int(10 / (TIME_STEP))
-t = np.arange(TEST_STEPS)*TIME_STEP
+TEST_DURATION = 3
+TEST_STEPS = int(TEST_DURATION / TIME_STEP)
+t = np.arange(TEST_STEPS) * TIME_STEP
 
-# [TODO] initialize data structures to save CPG and robot states
+if PLOT:
+    joint_pos = np.zeros((12, TEST_STEPS))
 
-
-############## Sample Gains
 # joint PD gains
-kp=np.array([100,100,100])
-kd=np.array([2,2,2])
+kp = np.array([100, 100, 100])
+kd = np.array([2, 2, 2])
 # Cartesian PD gains
-kpCartesian = np.diag([500]*3)
-kdCartesian = np.diag([20]*3)
+kpCartesian = np.diag([50] * 3)
+kdCartesian = np.diag([2] * 3)
 
 for j in range(TEST_STEPS):
-  # initialize torque array to send to motors
-  action = np.zeros(12) 
-  # get desired foot positions from CPG 
-  xs,zs = cpg.update()
-  # [TODO] get current motor angles and velocities for joint PD, see GetMotorAngles(), GetMotorVelocities() in quadruped.py
-  # q = env.robot.GetMotorAngles()
-  # dq = 
+    # initialize torque array to send to motors
+    action = np.zeros(12)
+    # get desired foot positions from CPG
+    xs, zs = cpg.update()
 
-  # loop through desired foot positions and calculate torques
-  for i in range(4):
-    # initialize torques for legi
-    tau = np.zeros(3)
-    # get desired foot i pos (xi, yi, zi) in leg frame
-    leg_xyz = np.array([xs[i],sideSign[i] * foot_y,zs[i]])
-    # call inverse kinematics to get corresponding joint angles (see ComputeInverseKinematics() in quadruped.py)
-    leg_q = np.zeros(3) # [TODO] 
-    # Add joint PD contribution to tau for leg i (Equation 4)
-    tau += np.zeros(3) # [TODO] 
+    q = env.robot.GetMotorAngles()
+    dq = env.robot.GetMotorVelocities()
 
-    # add Cartesian PD contribution
-    if ADD_CARTESIAN_PD:
-      # Get current Jacobian and foot position in leg frame (see ComputeJacobianAndPosition() in quadruped.py)
-      # [TODO] 
-      # Get current foot velocity in leg frame (Equation 2)
-      # [TODO] 
-      # Calculate torque contribution from Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
-      tau += np.zeros(3) # [TODO]
+    # loop through desired foot positions and calculate torques
+    for i in range(4):
+        # initialize torques for legi
+        tau = np.zeros(3)
+        # get desired foot i pos (xi, yi, zi) in leg frame
+        leg_xyz = np.array([xs[i], sideSign[i] * foot_y, zs[i]])
+        # call inverse kinematics to get corresponding joint angles (see ComputeInverseKinematics() in quadruped.py)
+        leg_q = env.robot.ComputeInverseKinematics(i, leg_xyz)
+        # Add joint PD contribution to tau for leg i (Equation 4)
+        tau += kp * (leg_q - q[i * 3:i * 3 + 3]) + kd * (-dq[i * 3:i * 3 + 3])
 
-    # Set tau for legi in action vector
-    action[3*i:3*i+3] = tau
+        # add Cartesian PD contribution
+        if ADD_CARTESIAN_PD:
+            # Get current Jacobian and foot position in leg frame (see ComputeJacobianAndPosition() in quadruped.py)
+            J, foot_pos = env.robot.ComputeJacobianAndPosition(i)
+            # Get current foot velocity in leg frame (Equation 2)
+            foot_vel = J @ dq[i * 3:i * 3 + 3]
+            # Calculate torque contribution from Cartesian PD (Equation 5) [Make sure you are using matrix
+            # multiplications]
+            tau += kpCartesian @ (leg_xyz - foot_pos) + kdCartesian @ (-foot_vel)
 
-  # send torques to robot and simulate TIME_STEP seconds 
-  env.step(action) 
+        # Set tau for legi in action vector
+        action[3 * i:3 * i + 3] = tau
 
-  # [TODO] save any CPG or robot states
+    # send torques to robot and simulate TIME_STEP seconds
+    env.step(action)
 
+    if PLOT:
+        joint_pos[:, j] = q
 
-
-##################################################### 
+#####################################################
 # PLOTS
 #####################################################
-# example
-# fig = plt.figure()
-# plt.plot(t,joint_pos[1,:], label='FR thigh')
-# plt.legend()
-# plt.show()
+
+if PLOT:
+    plt.figure()
+    plt.plot(t, joint_pos[3 * 0 + 1, :], label='FR thigh')
+    plt.plot(t, joint_pos[3 * 1 + 1, :], label='FL thigh')
+    plt.plot(t, joint_pos[3 * 2 + 1, :], label='RR thigh')
+    plt.plot(t, joint_pos[3 * 3 + 1, :], label='RL thigh')
+    plt.legend()
+    plt.figure()
+    plt.plot(t, joint_pos[3 * 0 + 0, :], label='FR hip')
+    plt.plot(t, joint_pos[3 * 0 + 1, :], label='FR thigh')
+    plt.plot(t, joint_pos[3 * 0 + 2, :], label='FR calf')
+    plt.legend()
+    plt.show()
