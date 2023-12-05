@@ -61,7 +61,7 @@ env = QuadrupedGymEnv(render=True,  # visualize
                       # record_video=True
                       )
 
-gait = "WALK"
+gait = "BOUND"
 
 if gait == "TROT":
     mu = 1
