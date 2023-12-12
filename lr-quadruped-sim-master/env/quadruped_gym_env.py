@@ -238,14 +238,31 @@ class QuadrupedGymEnv(gym.Env):
             LOWER_THETA = [0.]*4
             UPPER_DTHETA = [40.]*4
             LOWER_DTHETA = [0.]*4
+            LOWER_CONTACT_FRONT = [0.]*2
+            UPPER_CONTACT_FRONT = [120.]*2
+            LOWER_CONTACT_BACK = [0.]*2
+            UPPER_CONTACT_BACK = [500.]*2
+            LOWER_ROLL = [-0.05]
+            UPPER_ROLL = [0.05]
+            LOWER_PITCH = [-0.05]
+            UPPER_PITCH = [0.05]
+            LOWER_YAW = [-0.05]
+            UPPER_YAW = [0.05]
 
 
-            observation_high = (np.concatenate((UPPER_R,UPPER_DR,UPPER_THETA,UPPER_DTHETA,self._robot_config.UPPER_ANGLE_JOINT,
+            observation_high = (np.concatenate((UPPER_R,UPPER_DR,UPPER_THETA,UPPER_DTHETA,UPPER_ROLL,UPPER_PITCH,UPPER_YAW,UPPER_CONTACT_FRONT,UPPER_CONTACT_BACK,
+                                                np.array([1.0] * 4))) + OBSERVATION_EPS)
+            observation_low = (np.concatenate((LOWER_R,LOWER_DR,LOWER_THETA,LOWER_DTHETA,LOWER_ROLL,LOWER_PITCH,LOWER_YAW,LOWER_CONTACT_FRONT,LOWER_CONTACT_BACK,
+                                               np.array([-1.0] * 4))) - OBSERVATION_EPS)
+            
+            """observation_high = (np.concatenate((UPPER_R,UPPER_DR,UPPER_THETA,UPPER_DTHETA,self._robot_config.UPPER_ANGLE_JOINT, #OLD - NAEL 12.12
                                                 self._robot_config.VELOCITY_LIMITS,
                                                 np.array([1.0] * 4))) + OBSERVATION_EPS)
             observation_low = (np.concatenate((LOWER_R,LOWER_DR,LOWER_THETA,LOWER_DTHETA,self._robot_config.LOWER_ANGLE_JOINT,
                                                -self._robot_config.VELOCITY_LIMITS,
                                                np.array([-1.0] * 4))) - OBSERVATION_EPS)
+            """
+
             #observation_high = (np.zeros(50) + OBSERVATION_EPS)
             #observation_low = (np.zeros(50) - OBSERVATION_EPS)
         else:
@@ -272,13 +289,28 @@ class QuadrupedGymEnv(gym.Env):
                                                 self.robot.GetMotorVelocities(),
                                                 self.robot.GetBaseOrientation()))
         elif self._observation_space_mode == "LR_COURSE_OBS":
+            #self._observation = np.concatenate((self._cpg.get_r(), #OLD - NAEL 12.12
+            #                                    self._cpg.get_dr(),
+            #                                    self._cpg.get_theta(),
+            #                                    self._cpg.get_dtheta(),
+            #                                    self.robot.GetMotorAngles(),
+            #                                    self.robot.GetMotorVelocities(),
+            #                                  self.robot.GetBaseOrientation()))
+            """print('r', self._cpg.get_r())
+            print('dr', self._cpg.get_dr())
+            print('theta', self._cpg.get_theta())
+            print('dtheta', self._cpg.get_dtheta())
+            print('base orientation', self.robot.GetBaseOrientation())
+            print('contact info', self.robot.GetContactInfo()[2])
+            print('RollPitchYaw',self.robot.GetBaseOrientationRollPitchYaw())"""
             self._observation = np.concatenate((self._cpg.get_r(),
                                                 self._cpg.get_dr(),
                                                 self._cpg.get_theta(),
                                                 self._cpg.get_dtheta(),
-                                                self.robot.GetMotorAngles(),
-                                                self.robot.GetMotorVelocities(),
+                                                self.robot.GetBaseOrientationRollPitchYaw(),
+                                                self.robot.GetContactInfo()[2],
                                                 self.robot.GetBaseOrientation()))
+            
             # [TODO] Get observation from robot. What are reasonable measurements we could get on hardware?
             # if using the CPG, you can include states with self._cpg.get_r(), for example
             # 50 is arbitrary
