@@ -61,33 +61,39 @@ env = QuadrupedGymEnv(render=True,  # visualize
                       # record_video=True
                       )
 
-gait = "BOUND"
+gait = "WALK"
 
 if gait == "TROT":
-    mu = 1
-    omega_swing = 8 * 2 * np.pi
-    omega_stance = 3 * 2 * np.pi
+    cpg = HopfNetwork(time_step=TIME_STEP,
+                      gait=gait,
+                      omega_swing=8 * 2 * np.pi,
+                      omega_stance=3 * 2 * np.pi,
+                      ground_clearance=0.07)
 elif gait == "PACE":
-    mu = 2
-    omega_swing = 6 * 2 * np.pi
-    omega_stance = 3 * 2 * np.pi
+    cpg = HopfNetwork(time_step=TIME_STEP,
+                      gait=gait,
+                      mu=2,
+                      omega_swing=6 * 2 * np.pi,
+                      omega_stance=8 * 2 * np.pi,
+                      robot_height=0.23)
 elif gait == "BOUND":
-    mu = 1
-    omega_swing = 3 * 2 * np.pi
-    omega_stance = 2 * 2 * np.pi
+    cpg = HopfNetwork(time_step=TIME_STEP,
+                      gait=gait,
+                      mu=2,
+                      omega_swing=6 * 2 * np.pi,
+                      omega_stance=20 * 2 * np.pi,
+                      robot_height=0.2,
+                      des_step_len=0.07,
+                      ground_penetration=0.023,
+                      ground_clearance=0.07)
 elif gait == "WALK":
-    mu = 3
-    omega_swing = 10 * 2 * np.pi
-    omega_stance = 5 * 2 * np.pi
+    cpg = HopfNetwork(time_step=TIME_STEP,
+                      gait=gait,
+                      mu=3,
+                      omega_swing=10 * 2 * np.pi,
+                      omega_stance=5 * 2 * np.pi)
 else:
     raise ValueError(gait + ' not implemented.')
-
-# initialize Hopf Network, supply gait
-cpg = HopfNetwork(time_step=TIME_STEP,
-                  gait=gait,
-                  mu=mu,
-                  omega_swing=omega_swing,
-                  omega_stance=omega_stance)
 
 TEST_DURATION = 3
 TEST_STEPS = int(TEST_DURATION / TIME_STEP)

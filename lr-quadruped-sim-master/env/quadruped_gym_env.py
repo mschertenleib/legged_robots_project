@@ -29,13 +29,16 @@
 # Copyright (c) 2022 EPFL, Guillaume Bellegarda
 
 """This file implements the gym environment for a quadruped. """
-import os, inspect
+import inspect
+import os
+import sys
 
 # so we can import files
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 os.sys.path.insert(0, currentdir)
 
-import time, datetime
+import time
+import datetime
 import numpy as np
 # gym
 import gym
@@ -230,24 +233,25 @@ class QuadrupedGymEnv(gym.Env):
             # [TODO] Set observation upper and lower ranges. What are reasonable limits?
             # Note 50 is arbitrary below, you may have more or less
             # if using CPG-RL, remember to include limits on these
-            UPPER_R = [1.]*4
-            LOWER_R = [0.]*4
-            UPPER_DR = [20.]*4
-            LOWER_DR = [0.]*4
-            UPPER_THETA = [6.]*4
-            LOWER_THETA = [0.]*4
-            UPPER_DTHETA = [40.]*4
-            LOWER_DTHETA = [0.]*4
+            UPPER_R = [1.] * 4
+            LOWER_R = [0.] * 4
+            UPPER_DR = [20.] * 4
+            LOWER_DR = [0.] * 4
+            UPPER_THETA = [6.] * 4
+            LOWER_THETA = [0.] * 4
+            UPPER_DTHETA = [40.] * 4
+            LOWER_DTHETA = [0.] * 4
 
-
-            observation_high = (np.concatenate((UPPER_R,UPPER_DR,UPPER_THETA,UPPER_DTHETA,self._robot_config.UPPER_ANGLE_JOINT,
-                                                self._robot_config.VELOCITY_LIMITS,
-                                                np.array([1.0] * 4))) + OBSERVATION_EPS)
-            observation_low = (np.concatenate((LOWER_R,LOWER_DR,LOWER_THETA,LOWER_DTHETA,self._robot_config.LOWER_ANGLE_JOINT,
-                                               -self._robot_config.VELOCITY_LIMITS,
-                                               np.array([-1.0] * 4))) - OBSERVATION_EPS)
-            #observation_high = (np.zeros(50) + OBSERVATION_EPS)
-            #observation_low = (np.zeros(50) - OBSERVATION_EPS)
+            observation_high = (np.concatenate(
+                (UPPER_R, UPPER_DR, UPPER_THETA, UPPER_DTHETA, self._robot_config.UPPER_ANGLE_JOINT,
+                 self._robot_config.VELOCITY_LIMITS,
+                 np.array([1.0] * 4))) + OBSERVATION_EPS)
+            observation_low = (np.concatenate(
+                (LOWER_R, LOWER_DR, LOWER_THETA, LOWER_DTHETA, self._robot_config.LOWER_ANGLE_JOINT,
+                 -self._robot_config.VELOCITY_LIMITS,
+                 np.array([-1.0] * 4))) - OBSERVATION_EPS)
+            # observation_high = (np.zeros(50) + OBSERVATION_EPS)
+            # observation_low = (np.zeros(50) - OBSERVATION_EPS)
         else:
             raise ValueError("observation space not defined or not intended")
 
@@ -341,7 +345,7 @@ class QuadrupedGymEnv(gym.Env):
                  + drift_reward \
                  - 0.01 * energy_reward \
                  - 0.1 * np.linalg.norm(self.robot.GetBaseOrientation() - np.array([0, 0, 0, 1]))
-        #print(f'reward: {reward}')
+        # print(f'reward: {reward}')
         return max(reward, 0)  # keep rewards positive
 
     def get_distance_and_angle_to_goal(self):
@@ -405,7 +409,6 @@ class QuadrupedGymEnv(gym.Env):
         # Reward for moving in the desired direction
         direction_reward = direction_reward_weight * np.dot(unit_vector(current_velocity), desired_direction)
 
-
         # don't drift laterally
         drift_reward = -0.01 * abs(self.robot.GetBasePosition()[1])
 
@@ -422,7 +425,7 @@ class QuadrupedGymEnv(gym.Env):
 
         # Calculate total reward
         reward = vel_tracking_reward + direction_reward - energy_penalty - orientation_penalty + yaw_reward + drift_reward
-        #print(f'reward: {reward}')
+        # print(f'reward: {reward}')
         return max(reward, 0)  # Ensure reward is non-negative
 
     def _reward(self):
@@ -479,11 +482,11 @@ class QuadrupedGymEnv(gym.Env):
         qd = self.robot.GetMotorVelocities()
 
         action = np.zeros(12)
-        for i in range(4):# [TODO]
+        for i in range(4):  # [TODO]
             # get Jacobian and foot position in leg frame for leg i (see ComputeJacobianAndPosition() in quadruped.py)
             J, foot_pos = self.robot.ComputeJacobianAndPosition(i)
             # desired foot position i (from RL above)
-            Pd = des_foot_pos[3 * i:3 * i + 3] #np.zeros(3)  # [TODO]
+            Pd = des_foot_pos[3 * i:3 * i + 3]  # np.zeros(3)  # [TODO]
             # desired foot velocity i
             vd = np.zeros(3)  # [TODO]
             # foot velocity in leg frame i (Equation 2)
@@ -491,8 +494,8 @@ class QuadrupedGymEnv(gym.Env):
             # [TODO]
             # calculate torques with Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
             tau = kpCartesian @ (Pd - foot_pos) + kdCartesian @ (vd - v)  # np.zeros(3)  # [TODO]
-            #tau = np.zeros(3)  # [TODO]
-            #print(f'tau Cartesian PD: {tau}')
+            # tau = np.zeros(3)  # [TODO]
+            # print(f'tau Cartesian PD: {tau}')
             action[3 * i:3 * i + 3] = J.T @ tau
 
         return action
@@ -501,8 +504,8 @@ class QuadrupedGymEnv(gym.Env):
         """Scale RL action to CPG modulation parameters."""
         # clip RL actions to be between -1 and 1 (standard RL technique)
         u = np.clip(actions, -1, 1)
-        #scale_array = np.array([0.1, 0.05, 0.08] * 4)
-        #des_foot_pos = self._robot_config.NOMINAL_FOOT_POS_LEG_FRAME + scale_array * u
+        # scale_array = np.array([0.1, 0.05, 0.08] * 4)
+        # des_foot_pos = self._robot_config.NOMINAL_FOOT_POS_LEG_FRAME + scale_array * u
         # scale omega to ranges, and set in CPG (range is an example)
         omega = self._scale_helper(u[0:4], 5, 4.5 * 2 * np.pi)
         self._cpg.set_omega_rl(omega)
@@ -536,18 +539,19 @@ class QuadrupedGymEnv(gym.Env):
             z = zs[i]
 
             # call inverse kinematics to get corresponding joint angles
-            q_des = self.robot.ComputeInverseKinematics(i, np.array([x, y, z])) #np.zeros(3)  # [TODO]
-            
+            q_des = self.robot.ComputeInverseKinematics(i, np.array([x, y, z]))  # np.zeros(3)  # [TODO]
+
             # Add joint PD contribution to tau
-        
-            tau = (kp[i*3:i*3+3] * (q_des - q[i * 3:i * 3 + 3]) + kd[i*3:i*3+3] * (-dq[i * 3:i * 3 + 3]))  # np.zeros(3)  # [TODO]
+
+            tau = (kp[i * 3:i * 3 + 3] * (q_des - q[i * 3:i * 3 + 3]) + kd[i * 3:i * 3 + 3] * (
+                -dq[i * 3:i * 3 + 3]))  # np.zeros(3)  # [TODO]
 
             # add Cartesian PD contribution (as you wish)
-            #J, foot_pos = self.robot.ComputeJacobianAndPosition(i)
-            #Pd = des_foot_pos[3 * i:3 * i + 3]
-            #vd = np.zeros(3)
-            #v = J @ dq[i * 3:i * 3 + 3]
-            #tau += J.T @ (kpCartesian @ (Pd - foot_pos) + kdCartesian @ (vd - v)) 
+            # J, foot_pos = self.robot.ComputeJacobianAndPosition(i)
+            # Pd = des_foot_pos[3 * i:3 * i + 3]
+            # vd = np.zeros(3)
+            # v = J @ dq[i * 3:i * 3 + 3]
+            # tau += J.T @ (kpCartesian @ (Pd - foot_pos) + kdCartesian @ (vd - v))
             action[3 * i:3 * i + 3] = tau
 
         return action
