@@ -391,41 +391,69 @@ class QuadrupedGymEnv(gym.Env):
 
     def _reward_lr_course(self):
         """ Reward function for LR_COURSE_TASK. [TODO]"""
-        des_vel_x = 4
+
+        dt = self._time_step
+
         # Parameters to tune
         direction_reward_weight = 1.0
         energy_penalty_weight = 0.008
         orientation_penalty_weight = 0.1
 
-        vel_tracking_reward = 0.05 * np.exp(-1 / 0.25 * (self.robot.GetBaseLinearVelocity()[0] - des_vel_x) ** 2)
+        velocity_x, velocity_y, velocity_z = self.robot.GetBaseLinearVelocity()
+        roll_pitch_rate = self.robot.GetBaseAngularVelocity()[0:2]
+        yaw_rate = self.robot.GetBaseAngularVelocity()[2]
+
+        desired_velocity_x, desired_velocity_y = 1.0, 0.0
+        desired_yaw_rate = 0.0
+
+        delta_velocity_x = velocity_x - desired_velocity_x
+        delta_velocity_y = velocity_y - desired_velocity_y
+        delta_yaw_rate = yaw_rate - desired_yaw_rate
+
+        def f(x):
+            return np.exp(-np.dot(x, x) / 0.25)
+
+        reward_tracking_vel_x = 0.75 * dt * f(delta_velocity_x)
+        reward_tracking_vel_y = 0.75 * dt * f(delta_velocity_y)
+        reward_tracking_yaw_rate = 0.5 * dt * f(delta_yaw_rate)
+        reward_velocity_z = 2.0 * dt * -velocity_z ** 2
+        reward_roll_pitch_rates = -0.05 * dt * np.dot(roll_pitch_rate, roll_pitch_rate)
+
+        reward_work = 0.0
+        if len(self._dt_motor_velocities) >= 2:
+            motor_velocity_delta = self._dt_motor_velocities[-1] - self._dt_motor_velocities[-2]
+            reward_work = -0.001 * dt * np.abs(np.dot(self._dt_motor_torques[-1], motor_velocity_delta))
+
+        reward = (reward_tracking_vel_x + reward_tracking_vel_y + reward_tracking_yaw_rate + reward_velocity_z +
+                  reward_roll_pitch_rates + reward_work)
 
         # Desired running direction - can be dynamically set or fixed
-        desired_direction = np.array([1.0, 0.0])  # Example: right along the x-axis
+        # desired_direction = np.array([1.0, 0.0])  # Example: right along the x-axis
 
         # Current velocity and orientation
-        current_velocity = self.robot.GetBaseLinearVelocity()[:2]  # Get x, y components
-        current_orientation = self.robot.GetBaseOrientation()
+        # current_velocity = self.robot.GetBaseLinearVelocity()[:2]  # Get x, y components
+        # current_orientation = self.robot.GetBaseOrientation()
 
         # Reward for moving in the desired direction
-        direction_reward = direction_reward_weight * np.dot(unit_vector(current_velocity), desired_direction)
+        # direction_reward = direction_reward_weight * np.dot(unit_vector(current_velocity), desired_direction)
 
         # don't drift laterally
-        drift_reward = -0.01 * abs(self.robot.GetBasePosition()[1])
+        # drift_reward = -0.01 * abs(self.robot.GetBasePosition()[1])
 
         # Yaw
-        yaw_reward = -0.2 * np.abs(self.robot.GetBaseOrientationRollPitchYaw()[2])
+        # yaw_reward = -0.2 * np.abs(self.robot.GetBaseOrientationRollPitchYaw()[2])
         # Penalize for energy consumption
-        energy_penalty = 0
-        for tau, vel in zip(self._dt_motor_torques, self._dt_motor_velocities):
-            energy_penalty += np.abs(np.dot(tau, vel)) * self._time_step
-        energy_penalty *= energy_penalty_weight
+        # energy_penalty = 0
+        # for tau, vel in zip(self._dt_motor_torques, self._dt_motor_velocities):
+        #    energy_penalty += np.abs(np.dot(tau, vel)) * self._time_step
+        # energy_penalty *= energy_penalty_weight
 
         # Penalize for deviation in orientation
-        orientation_penalty = orientation_penalty_weight * np.linalg.norm(current_orientation - np.array([0, 0, 0, 1]))
+        # orientation_penalty = orientation_penalty_weight * np.linalg.norm(current_orientation - np.array([0, 0, 0, 1]))
 
         # Calculate total reward
-        reward = vel_tracking_reward + direction_reward - energy_penalty - orientation_penalty + yaw_reward + drift_reward
-        # print(f'reward: {reward}')
+        # reward = vel_tracking_reward + direction_reward - energy_penalty - orientation_penalty + yaw_reward + drift_reward
+
         return max(reward, 0)  # Ensure reward is non-negative
 
     def _reward(self):
