@@ -387,55 +387,90 @@ class QuadrupedGymEnv(gym.Env):
     def _reward_lr_course(self):
         """ Reward function for LR_COURSE_TASK. [TODO]"""
 
-        dt = self._time_step
+        if self._motor_control_mode in ["CPG"]:
 
-        # Get state
-        velocity_xy = self.robot.GetBaseLinearVelocity()[0:2]
-        velocity_z = self.robot.GetBaseLinearVelocity()[2]
-        roll_pitch = self.robot.GetBaseOrientationRollPitchYaw()[0:2]
-        yaw = self.robot.GetBaseOrientationRollPitchYaw()[2]
-        roll_pitch_rate = self.robot.GetBaseAngularVelocity()[0:2]
-        yaw_rate = self.robot.GetBaseAngularVelocity()[2]
-        num_valid_contacts, num_invalid_contacts, feet_normal_forces, feet_in_contact = self.robot.GetContactInfo()
+            dt = self._time_step
 
-        # Desired running direction
-        desired_direction = unit_vector(np.array([1.0, 0.0]))
+            velocity_x, velocity_y, velocity_z = self.robot.GetBaseLinearVelocity()
+            roll_pitch_rate = self.robot.GetBaseAngularVelocity()[0:2]
+            yaw_rate = self.robot.GetBaseAngularVelocity()[2]
 
-        def f(x):
-            return np.exp(-np.dot(x, x) / 0.25)
+            desired_velocity_x, desired_velocity_y = 1.0, 0.0
+            desired_yaw_rate = 0.0
 
-        # Maximize velocity in desired direction
-        reward_forward = 20 * dt * np.dot(desired_direction, velocity_xy)
+            delta_velocity_x = velocity_x - desired_velocity_x
+            delta_velocity_y = velocity_y - desired_velocity_y
+            delta_yaw_rate = yaw_rate - desired_yaw_rate
 
-        # Minimize lateral velocity
-        reward_lateral = -21 * dt * np.cross(desired_direction, velocity_xy) ** 2
+            def f(x):
+                return np.exp(-np.dot(x, x) / 0.25)
 
-        # Minimize yaw movements
-        reward_yaw_rate = -21 * dt * yaw_rate ** 2
+            reward_tracking_vel_x = 0.75 * dt * f(delta_velocity_x)
+            reward_tracking_vel_y = 0.75 * dt * f(delta_velocity_y)
+            reward_tracking_yaw_rate = 0.5 * dt * f(delta_yaw_rate)
+            reward_velocity_z = 2.0 * dt * -velocity_z ** 2
+            reward_roll_pitch_rates = -0.05 * dt * np.dot(roll_pitch_rate, roll_pitch_rate)
 
-        # Minimize roll and pitch angles
-        reward_roll_pitch = -1.5 * dt * np.dot(roll_pitch, roll_pitch)
+            reward_work = 0.0
+            if len(self._dt_motor_velocities) >= 2:
+                motor_velocity_delta = self._dt_motor_velocities[-1] - self._dt_motor_velocities[-2]
+                reward_work = -0.001 * dt * np.abs(np.dot(self._dt_motor_torques[-1], motor_velocity_delta))
 
-        # Minimize vertical velocity
-        reward_velocity_z = -2.0 * dt * velocity_z ** 2
+            reward = (reward_tracking_vel_x
+                      + reward_tracking_vel_y
+                      + reward_tracking_yaw_rate
+                      + reward_velocity_z
+                      + reward_roll_pitch_rates
+                      + reward_work)
 
-        # Minimize work
-        reward_work = 0.0
-        if len(self._dt_motor_velocities) >= 2:
-            motor_velocity_delta = self._dt_motor_velocities[-1] - self._dt_motor_velocities[-2]
-            reward_work = -0.002 * dt * np.abs(np.dot(self._dt_motor_torques[-1], motor_velocity_delta))
+        else:
 
-        # Minimize ground impact
-        feet_force_delta = self._dt_feet_forces[-1] - self._dt_feet_forces[-2]
-        reward_ground_impact = -0.02 * dt * np.dot(feet_force_delta, feet_force_delta)
+            dt = self._time_step
 
-        reward = (reward_forward
-                  + reward_lateral
-                  + reward_yaw_rate
-                  + reward_roll_pitch
-                  + reward_velocity_z
-                  + reward_work
-                  + reward_ground_impact)
+            # Get state
+            velocity_xy = self.robot.GetBaseLinearVelocity()[0:2]
+            velocity_z = self.robot.GetBaseLinearVelocity()[2]
+            roll_pitch = self.robot.GetBaseOrientationRollPitchYaw()[0:2]
+            yaw = self.robot.GetBaseOrientationRollPitchYaw()[2]
+            roll_pitch_rate = self.robot.GetBaseAngularVelocity()[0:2]
+            yaw_rate = self.robot.GetBaseAngularVelocity()[2]
+            num_valid_contacts, num_invalid_contacts, feet_normal_forces, feet_in_contact = self.robot.GetContactInfo()
+
+            # Desired running direction
+            desired_direction = unit_vector(np.array([1.0, 0.0]))
+
+            # Maximize velocity in desired direction
+            reward_forward = 20 * dt * np.dot(desired_direction, velocity_xy)
+
+            # Minimize lateral velocity
+            reward_lateral = -21 * dt * np.cross(desired_direction, velocity_xy) ** 2
+
+            # Minimize yaw movements
+            reward_yaw_rate = -21 * dt * yaw_rate ** 2
+
+            # Minimize roll and pitch angles
+            reward_roll_pitch = -1.5 * dt * np.dot(roll_pitch, roll_pitch)
+
+            # Minimize vertical velocity
+            reward_velocity_z = -2.0 * dt * velocity_z ** 2
+
+            # Minimize work
+            reward_work = 0.0
+            if len(self._dt_motor_velocities) >= 2:
+                motor_velocity_delta = self._dt_motor_velocities[-1] - self._dt_motor_velocities[-2]
+                reward_work = -0.002 * dt * np.abs(np.dot(self._dt_motor_torques[-1], motor_velocity_delta))
+
+            # Minimize ground impact
+            feet_force_delta = self._dt_feet_forces[-1] - self._dt_feet_forces[-2]
+            reward_ground_impact = -0.02 * dt * np.dot(feet_force_delta, feet_force_delta)
+
+            reward = (reward_forward
+                      + reward_lateral
+                      + reward_yaw_rate
+                      + reward_roll_pitch
+                      + reward_velocity_z
+                      + reward_work
+                      + reward_ground_impact)
 
         return max(reward, 0)  # Ensure reward is non-negative
 
