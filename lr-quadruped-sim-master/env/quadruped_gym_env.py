@@ -284,9 +284,6 @@ class QuadrupedGymEnv(gym.Env):
                                                 self.robot.GetMotorVelocities(),
                                                 self.robot.GetBaseOrientation()))
             # [TODO] Get observation from robot. What are reasonable measurements we could get on hardware?
-            # if using the CPG, you can include states with self._cpg.get_r(), for example
-            # 50 is arbitrary
-            # self._observation = np.zeros(50)
 
         else:
             raise ValueError("observation space not defined or not intended")
@@ -383,9 +380,7 @@ class QuadrupedGymEnv(gym.Env):
         for tau, vel in zip(self._dt_motor_torques, self._dt_motor_velocities):
             energy_reward += np.abs(np.dot(tau, vel)) * self._time_step
 
-        reward = dist_reward \
-                 + yaw_reward \
-                 - 0.001 * energy_reward
+        reward = dist_reward + yaw_reward - 0.001 * energy_reward
 
         return max(reward, 0)  # keep rewards positive
 
@@ -394,65 +389,53 @@ class QuadrupedGymEnv(gym.Env):
 
         dt = self._time_step
 
-        # Parameters to tune
-        direction_reward_weight = 1.0
-        energy_penalty_weight = 0.008
-        orientation_penalty_weight = 0.1
-
-        velocity_x, velocity_y, velocity_z = self.robot.GetBaseLinearVelocity()
+        # Get state
+        velocity_xy = self.robot.GetBaseLinearVelocity()[0:2]
+        velocity_z = self.robot.GetBaseLinearVelocity()[2]
+        roll_pitch = self.robot.GetBaseOrientationRollPitchYaw()[0:2]
+        yaw = self.robot.GetBaseOrientationRollPitchYaw()[2]
         roll_pitch_rate = self.robot.GetBaseAngularVelocity()[0:2]
         yaw_rate = self.robot.GetBaseAngularVelocity()[2]
+        num_valid_contacts, num_invalid_contacts, feet_normal_forces, feet_in_contact = self.robot.GetContactInfo()
 
-        desired_velocity_x, desired_velocity_y = 1.0, 0.0
-        desired_yaw_rate = 0.0
-
-        delta_velocity_x = velocity_x - desired_velocity_x
-        delta_velocity_y = velocity_y - desired_velocity_y
-        delta_yaw_rate = yaw_rate - desired_yaw_rate
+        # Desired running direction
+        desired_direction = unit_vector(np.array([1.0, 0.0]))
 
         def f(x):
             return np.exp(-np.dot(x, x) / 0.25)
 
-        reward_tracking_vel_x = 0.75 * dt * f(delta_velocity_x)
-        reward_tracking_vel_y = 0.75 * dt * f(delta_velocity_y)
-        reward_tracking_yaw_rate = 0.5 * dt * f(delta_yaw_rate)
-        reward_velocity_z = 2.0 * dt * -velocity_z ** 2
-        reward_roll_pitch_rates = -0.05 * dt * np.dot(roll_pitch_rate, roll_pitch_rate)
+        # Maximize velocity in desired direction
+        reward_forward = 20 * dt * np.dot(desired_direction, velocity_xy)
 
+        # Minimize lateral velocity
+        reward_lateral = -21 * dt * np.cross(desired_direction, velocity_xy) ** 2
+
+        # Minimize yaw movements
+        reward_yaw_rate = -21 * dt * yaw_rate ** 2
+
+        # Minimize roll and pitch angles
+        reward_roll_pitch = -1.5 * dt * np.dot(roll_pitch, roll_pitch)
+
+        # Minimize vertical velocity
+        reward_velocity_z = -2.0 * dt * velocity_z ** 2
+
+        # Minimize work
         reward_work = 0.0
         if len(self._dt_motor_velocities) >= 2:
             motor_velocity_delta = self._dt_motor_velocities[-1] - self._dt_motor_velocities[-2]
-            reward_work = -0.001 * dt * np.abs(np.dot(self._dt_motor_torques[-1], motor_velocity_delta))
+            reward_work = -0.002 * dt * np.abs(np.dot(self._dt_motor_torques[-1], motor_velocity_delta))
 
-        reward = (reward_tracking_vel_x + reward_tracking_vel_y + reward_tracking_yaw_rate + reward_velocity_z +
-                  reward_roll_pitch_rates + reward_work)
+        # Minimize ground impact
+        feet_force_delta = self._dt_feet_forces[-1] - self._dt_feet_forces[-2]
+        reward_ground_impact = -0.02 * dt * np.dot(feet_force_delta, feet_force_delta)
 
-        # Desired running direction - can be dynamically set or fixed
-        # desired_direction = np.array([1.0, 0.0])  # Example: right along the x-axis
-
-        # Current velocity and orientation
-        # current_velocity = self.robot.GetBaseLinearVelocity()[:2]  # Get x, y components
-        # current_orientation = self.robot.GetBaseOrientation()
-
-        # Reward for moving in the desired direction
-        # direction_reward = direction_reward_weight * np.dot(unit_vector(current_velocity), desired_direction)
-
-        # don't drift laterally
-        # drift_reward = -0.01 * abs(self.robot.GetBasePosition()[1])
-
-        # Yaw
-        # yaw_reward = -0.2 * np.abs(self.robot.GetBaseOrientationRollPitchYaw()[2])
-        # Penalize for energy consumption
-        # energy_penalty = 0
-        # for tau, vel in zip(self._dt_motor_torques, self._dt_motor_velocities):
-        #    energy_penalty += np.abs(np.dot(tau, vel)) * self._time_step
-        # energy_penalty *= energy_penalty_weight
-
-        # Penalize for deviation in orientation
-        # orientation_penalty = orientation_penalty_weight * np.linalg.norm(current_orientation - np.array([0, 0, 0, 1]))
-
-        # Calculate total reward
-        # reward = vel_tracking_reward + direction_reward - energy_penalty - orientation_penalty + yaw_reward + drift_reward
+        reward = (reward_forward
+                  + reward_lateral
+                  + reward_yaw_rate
+                  + reward_roll_pitch
+                  + reward_velocity_z
+                  + reward_work
+                  + reward_ground_impact)
 
         return max(reward, 0)  # Ensure reward is non-negative
 
@@ -590,6 +573,7 @@ class QuadrupedGymEnv(gym.Env):
         # save motor torques and velocities to compute power in reward function
         self._dt_motor_torques = []
         self._dt_motor_velocities = []
+        self._dt_feet_forces = []
         if "FLAGRUN" in self._TASK_ENV:
             self._prev_pos_to_goal, _ = self.get_distance_and_angle_to_goal()
 
@@ -603,6 +587,7 @@ class QuadrupedGymEnv(gym.Env):
             self._sim_step_counter += 1
             self._dt_motor_torques.append(self.robot.GetMotorTorques())
             self._dt_motor_velocities.append(self.robot.GetMotorVelocities())
+            self._dt_feet_forces.append(np.array(self.robot.GetContactInfo()[2]))
 
             if self._is_render:
                 self._render_step_helper()

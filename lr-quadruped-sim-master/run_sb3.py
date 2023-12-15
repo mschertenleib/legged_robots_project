@@ -50,7 +50,7 @@ NUM_ENVS = 1  # how many pybullet environments to create for data collection
 USE_GPU = False  # make sure to install all necessary drivers
 
 # after implementing, you will want to test how well the agent learns with your MDP: 
-env_configs = {"motor_control_mode": "CPG",
+env_configs = {"motor_control_mode": "PD",
                "task_env": "LR_COURSE_TASK",  # "LR_COURSE_TASK",
                "observation_space_mode": "LR_COURSE_OBS"}
 
@@ -134,7 +134,7 @@ if LOAD_NN:
     print("\nLoaded model", model_name, "\n")
 
 # Learn and save (may need to train for longer)
-model.learn(total_timesteps=2000000, log_interval=1, callback=checkpoint_callback)
+model.learn(total_timesteps=1000000, log_interval=1, callback=checkpoint_callback)
 # Don't forget to save the VecNormalize statistics when saving the agent
 model.save(os.path.join(SAVE_PATH, "rl_model"))
 env.save(os.path.join(SAVE_PATH, "vec_normalize.pkl"))
