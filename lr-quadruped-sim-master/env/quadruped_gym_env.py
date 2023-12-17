@@ -233,25 +233,23 @@ class QuadrupedGymEnv(gym.Env):
             # [TODO] Set observation upper and lower ranges. What are reasonable limits?
             # Note 50 is arbitrary below, you may have more or less
             # if using CPG-RL, remember to include limits on these
-            UPPER_R = [1.] * 4
-            LOWER_R = [0.] * 4
-            UPPER_DR = [20.] * 4
-            LOWER_DR = [0.] * 4
-            UPPER_THETA = [6.] * 4
-            LOWER_THETA = [0.] * 4
-            UPPER_DTHETA = [40.] * 4
-            LOWER_DTHETA = [0.] * 4
 
-            observation_high = (np.concatenate(
-                (UPPER_R, UPPER_DR, UPPER_THETA, UPPER_DTHETA, self._robot_config.UPPER_ANGLE_JOINT,
-                 self._robot_config.VELOCITY_LIMITS,
-                 np.array([1.0] * 4))) + OBSERVATION_EPS)
-            observation_low = (np.concatenate(
-                (LOWER_R, LOWER_DR, LOWER_THETA, LOWER_DTHETA, self._robot_config.LOWER_ANGLE_JOINT,
-                 -self._robot_config.VELOCITY_LIMITS,
-                 np.array([-1.0] * 4))) - OBSERVATION_EPS)
-            # observation_high = (np.zeros(50) + OBSERVATION_EPS)
-            # observation_low = (np.zeros(50) - OBSERVATION_EPS)
+            observation_high = (np.concatenate((np.array([8.0] * 4),  # r
+                                                np.array([100.0] * 4),  # dr
+                                                # np.array([2.0 * np.pi + 0.001] * 4),  # theta
+                                                np.array([300.0] * 4),  # dtheta
+                                                self._robot_config.UPPER_ANGLE_JOINT,  # motor angles
+                                                self._robot_config.VELOCITY_LIMITS,  # motor velocities
+                                                np.array([1.0] * 4)))  # base orientation
+                                + OBSERVATION_EPS)
+            observation_low = (np.concatenate((np.array([0.0] * 4),  # r
+                                               np.array([0.0] * 4),  # dr
+                                               # np.array([0.0] * 4),  # theta
+                                               np.array([0.0] * 4),  # dtheta
+                                               self._robot_config.LOWER_ANGLE_JOINT,  # motor angles
+                                               -self._robot_config.VELOCITY_LIMITS,  # motor velocities
+                                               np.array([-1.0] * 4)))  # base orientation
+                               - OBSERVATION_EPS)
         else:
             raise ValueError("observation space not defined or not intended")
 
@@ -278,7 +276,7 @@ class QuadrupedGymEnv(gym.Env):
         elif self._observation_space_mode == "LR_COURSE_OBS":
             self._observation = np.concatenate((self._cpg.get_r(),
                                                 self._cpg.get_dr(),
-                                                self._cpg.get_theta(),
+                                                # self._cpg.get_theta(),
                                                 self._cpg.get_dtheta(),
                                                 self.robot.GetMotorAngles(),
                                                 self.robot.GetMotorVelocities(),
@@ -368,21 +366,23 @@ class QuadrupedGymEnv(gym.Env):
 
     def _reward_flag_run(self):
         """ Learn to move towards goal location. """
-        curr_dist_to_goal, angle = self.get_distance_and_angle_to_goal()
+        curr_dist_to_goal, angle_to_goal = self.get_distance_and_angle_to_goal()
 
         dt = self._time_step
 
         velocity_x, velocity_y, velocity_z = self.robot.GetBaseLinearVelocity()
         roll_pitch_rate = self.robot.GetBaseAngularVelocity()[0:2]
         yaw_rate = self.robot.GetBaseAngularVelocity()[2]
+        yaw = self.robot.GetBaseOrientationRollPitchYaw()[2]
 
         def f(x):
             return np.exp(-np.dot(x, x) / 0.25)
 
         # minimize distance to goal (we want to move towards the goal)
-        reward_distance = 10 * dt * (self._prev_pos_to_goal - curr_dist_to_goal)
+        reward_distance = 40 * dt * (self._prev_pos_to_goal - curr_dist_to_goal)
+        reward_angle = 1.0 * dt * f(yaw - angle_to_goal)
 
-        reward_tracking_yaw_rate = 0.5 * dt * f(yaw_rate)
+        reward_yaw_rate = 0.5 * dt * f(yaw_rate)
         reward_velocity_z = 2.0 * dt * -velocity_z ** 2
         reward_roll_pitch_rates = -0.05 * dt * np.dot(roll_pitch_rate, roll_pitch_rate)
 
@@ -392,7 +392,8 @@ class QuadrupedGymEnv(gym.Env):
             reward_work = -0.001 * dt * np.abs(np.dot(self._dt_motor_torques[-1], motor_velocity_delta))
 
         reward = (reward_distance
-                  + reward_tracking_yaw_rate
+                  + reward_angle
+                  + reward_yaw_rate
                   + reward_velocity_z
                   + reward_roll_pitch_rates
                   + reward_work)
