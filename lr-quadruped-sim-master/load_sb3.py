@@ -43,35 +43,34 @@ from sys import platform
 #   matplotlib.use('TkAgg')
 
 import os
-os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 # stable-baselines3
-from stable_baselines3.common.monitor import load_results 
+from stable_baselines3.common.monitor import load_results
 from stable_baselines3.common.vec_env import VecNormalize
 from stable_baselines3 import PPO, SAC
 # from stable_baselines3.common.cmd_util import make_vec_env
-from stable_baselines3.common.env_util import make_vec_env # fix for newer versions of stable-baselines3
+from stable_baselines3.common.env_util import make_vec_env  # fix for newer versions of stable-baselines3
 
 from env.quadruped_gym_env import QuadrupedGymEnv
 # utils
 from utils.utils import plot_results
 from utils.file_utils import get_latest_model, load_all_results
 
-
 LEARNING_ALG = "PPO"
 interm_dir = "./logs/intermediate_models/"
-log_dir = interm_dir + '121523154318'
+log_dir = interm_dir + '121623223207'
 
 # initialize env configs (render at test time)
 # check ideal conditions, as well as robustness to UNSEEN noise during training
-env_config = {"motor_control_mode":"PD",
-                "task_env": "LR_COURSE_TASK", #  "LR_COURSE_TASK",
-                "observation_space_mode": "LR_COURSE_OBS"}
+env_config = {"motor_control_mode": "CPG",
+              "task_env": "FLAGRUN",  # "LR_COURSE_TASK",
+              "observation_space_mode": "LR_COURSE_OBS"}
 
 env_config['render'] = True
 env_config['record_video'] = False
-env_config['add_noise'] = False 
-
+env_config['add_noise'] = True
 
 # env_config['competition_env'] = True
 
@@ -82,15 +81,15 @@ print("model_name", model_name)
 
 monitor_results = load_results(log_dir)
 print(monitor_results)
-plot_results([log_dir] , 10e10, 'timesteps', LEARNING_ALG + ' ')
-plt.show() 
+plot_results([log_dir], 10e10, 'timesteps', LEARNING_ALG + ' ')
+plt.show()
 
 # reconstruct env 
 env = lambda: QuadrupedGymEnv(**env_config)
 env = make_vec_env(env, n_envs=1)
 env = VecNormalize.load(stats_path, env)
-env.training = False    # do not update stats at test time
-env.norm_reward = False # reward normalization is not needed at test time
+env.training = False  # do not update stats at test time
+env.norm_reward = False  # reward normalization is not needed at test time
 
 # load model
 if LEARNING_ALG == "PPO":
@@ -106,8 +105,8 @@ episode_reward = 0
 #
 
 for i in range(2000):
-    action, _states = model.predict(obs,deterministic=False) # sample at test time? ([TODO]: test)
-    #print('action', action.shape)
+    action, _states = model.predict(obs, deterministic=False)  # sample at test time? ([TODO]: test)
+    # print('action', action.shape)
     obs, rewards, dones, info = env.step(action)
     episode_reward += rewards
     if dones:
@@ -117,6 +116,5 @@ for i in range(2000):
 
     # [TODO] save data from current robot states for plots 
     # To get base position, for example: env.envs[0].env.robot.GetBasePosition() 
-    
 
 # [TODO] make plots:

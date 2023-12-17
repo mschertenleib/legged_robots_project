@@ -370,17 +370,32 @@ class QuadrupedGymEnv(gym.Env):
         """ Learn to move towards goal location. """
         curr_dist_to_goal, angle = self.get_distance_and_angle_to_goal()
 
+        dt = self._time_step
+
+        velocity_x, velocity_y, velocity_z = self.robot.GetBaseLinearVelocity()
+        roll_pitch_rate = self.robot.GetBaseAngularVelocity()[0:2]
+        yaw_rate = self.robot.GetBaseAngularVelocity()[2]
+
+        def f(x):
+            return np.exp(-np.dot(x, x) / 0.25)
+
         # minimize distance to goal (we want to move towards the goal)
-        dist_reward = 10 * (self._prev_pos_to_goal - curr_dist_to_goal)
-        # minimize yaw deviation to goal (necessary?)
-        yaw_reward = 0  # -0.01 * np.abs(angle)
+        reward_distance = 10 * dt * (self._prev_pos_to_goal - curr_dist_to_goal)
 
-        # minimize energy
-        energy_reward = 0
-        for tau, vel in zip(self._dt_motor_torques, self._dt_motor_velocities):
-            energy_reward += np.abs(np.dot(tau, vel)) * self._time_step
+        reward_tracking_yaw_rate = 0.5 * dt * f(yaw_rate)
+        reward_velocity_z = 2.0 * dt * -velocity_z ** 2
+        reward_roll_pitch_rates = -0.05 * dt * np.dot(roll_pitch_rate, roll_pitch_rate)
 
-        reward = dist_reward + yaw_reward - 0.001 * energy_reward
+        reward_work = 0.0
+        if len(self._dt_motor_velocities) >= 2:
+            motor_velocity_delta = self._dt_motor_velocities[-1] - self._dt_motor_velocities[-2]
+            reward_work = -0.001 * dt * np.abs(np.dot(self._dt_motor_torques[-1], motor_velocity_delta))
+
+        reward = (reward_distance
+                  + reward_tracking_yaw_rate
+                  + reward_velocity_z
+                  + reward_roll_pitch_rates
+                  + reward_work)
 
         return max(reward, 0)  # keep rewards positive
 
