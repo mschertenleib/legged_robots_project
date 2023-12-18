@@ -55,7 +55,7 @@ from utils.file_utils import get_latest_model
 
 LEARNING_ALG = "PPO"
 interm_dir = "./logs/intermediate_models/"
-log_dir = interm_dir + "PPO_PD_FLAGRUN_DEFAULT"
+log_dir = interm_dir + "PPO_PD_FLAGRUN_DEFAULT_higher_weights"
 
 # initialize env configs (render at test time)
 # check ideal conditions, as well as robustness to UNSEEN noise during training
@@ -65,7 +65,7 @@ env_config = {"motor_control_mode": "PD",
               "test_env": False}
 
 env_config['render'] = True
-env_config['record_video'] = True
+env_config['record_video'] = False
 env_config['add_noise'] = False
 
 env_config['competition_env'] = True
