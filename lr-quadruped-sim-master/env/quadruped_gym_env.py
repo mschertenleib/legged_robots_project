@@ -403,21 +403,17 @@ class QuadrupedGymEnv(gym.Env):
         goal_vec = self._goal_location
         base_pos = self.robot.GetBasePosition()
         distancexy = base_pos[0:2] - goal_vec
-        # SPEED
-        des_vel_x = des_vel if distancexy[0]>0.1 else 0.5
-        vel_tracking_rewardx = 0.02 * np.exp(-1 / 0.25 * (self.robot.GetBaseLinearVelocity()[0] - des_vel_x) ** 2)
-
-        des_vel_y = des_vel if distancexy[1]>0.1 else 0.5
-        vel_tracking_rewardy = 0.02 * np.exp(-1 / 0.25 * (self.robot.GetBaseLinearVelocity()[1] - des_vel_y) ** 2)
+        curr_dist_to_goal, angle = self.get_distance_and_angle_to_goal()
+        # SPEED        
         goal_threshold = 1.5
         des_vel_x = np.clip(des_vel * (distancexy[0] / goal_threshold), 0.5, des_vel)
         des_vel_y = np.clip(des_vel * (distancexy[1] / goal_threshold), 0.5, des_vel)
-        dist_reward = 2 * np.exp(-1 / 0.5 * curr_dist_to_goal ** 2)
-
+        vel_tracking_rewardx = 0.02 * np.exp(-1 / 0.25 * (self.robot.GetBaseLinearVelocity()[0] - des_vel_x) ** 2)
+        vel_tracking_rewardy = 0.02 * np.exp(-1 / 0.25 * (self.robot.GetBaseLinearVelocity()[1] - des_vel_y) ** 2)
+        dist_reward = 7 * np.exp(-1 / 0.5 * curr_dist_to_goal ** 2)        
         
-        curr_dist_to_goal, angle = self.get_distance_and_angle_to_goal()
         capture_reward = 0
-        if curr_dist_to_goal < 0.1:
+        if curr_dist_to_goal < 0.01:
             capture_reward = 100
         else:
             capture_reward = 0
@@ -438,7 +434,8 @@ class QuadrupedGymEnv(gym.Env):
 
         reward = + curr_dist_to_goal \
                  + dist_reward \
-                 + des_vel_x \
+                 + vel_tracking_rewardx \
+                 + vel_tracking_rewardy \
                  + des_vel_y \
                  + capture_reward \
                  + yaw_orientation_reward \
