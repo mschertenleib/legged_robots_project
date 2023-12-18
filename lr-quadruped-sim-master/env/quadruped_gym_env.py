@@ -399,37 +399,51 @@ class QuadrupedGymEnv(gym.Env):
 
     def _reward_flag_run(self):
         """ Learn to move towards goal location. """
-        #des_vel_x = 4
+        des_vel = 2
+        goal_vec = self._goal_location
+        base_pos = self.robot.GetBasePosition()
+        distancexy = base_pos[0:2] - goal_vec
+        # SPEED
+        des_vel_x = des_vel if distancexy[0]>0.1 else 0.5
+        vel_tracking_rewardx = 0.02 * np.exp(-1 / 0.25 * (self.robot.GetBaseLinearVelocity()[0] - des_vel_x) ** 2)
 
+        des_vel_y = des_vel if distancexy[1]>0.1 else 0.5
+        vel_tracking_rewardy = 0.02 * np.exp(-1 / 0.25 * (self.robot.GetBaseLinearVelocity()[1] - des_vel_y) ** 2)
+        goal_threshold = 1.5
+        des_vel_x = np.clip(des_vel * (distancexy[0] / goal_threshold), 0.5, des_vel)
+        des_vel_y = np.clip(des_vel * (distancexy[1] / goal_threshold), 0.5, des_vel)
+        dist_reward = 2 * np.exp(-1 / 0.5 * curr_dist_to_goal ** 2)
+
+        
         curr_dist_to_goal, angle = self.get_distance_and_angle_to_goal()
+        capture_reward = 0
+        if curr_dist_to_goal < 0.1:
+            capture_reward = 100
+        else:
+            capture_reward = 0
 
         # minimize distance to goal (we want to move towards the goal)
-        dist_reward = (self._prev_pos_to_goal - curr_dist_to_goal)
-        # minimize yaw deviation to goal (necessary?)
-        #yaw_reward = 0  # -0.01 * np.abs(angle)
-        pitch_yaw_reward =  (self.robot.GetBaseOrientationRollPitchYaw()[0] ** 2) + (self.robot.GetBaseOrientationRollPitchYaw()[1] ** 2)
-        #pitch_reward = -0.2 * np.abs(self.robot.GetBaseOrientationRollPitchYaw()[1])
+        # dist_reward = 2 * np.exp(-1 /0.25 * (curr_dist_to_goal - self._prev_pos_to_goal) ** 2)
+        # dist_reward = 2 * np.exp(-1 / 0.5 * curr_dist_to_goal ** 2)
+        # minimize yaw (go straight)
+        # pitch_yaw_reward =  -0.2 * (np.exp(-1 / 0.25 * (self.robot.GetBaseOrientationRollPitchYaw()[0] ** 2)) + np.exp(-1 / 0.25 *(self.robot.GetBaseOrientationRollPitchYaw()[1] ** 2)))
 
-        # velocity
-        #vel_tracking_reward_x =  np.exp(-1 / 0.25 * (self.robot.GetBaseLinearVelocity()[0] - des_vel_x) ** 2)
-        #vel_tracking_reward_y = np.exp(-1 / 0.25 * (self.robot.GetBaseLinearVelocity()[1] - des_vel_x) ** 2)
-        #vel_tracking_reward_z = (self.robot.GetBaseLinearVelocity()[2] ** 2)
-
-        # yaw rate
-        yaw_rate_reward =  np.exp(-1 / 0.25 * (self.robot.GetBaseOrientationRollPitchYaw()[2] - angle) ** 2)
-
+        # yaw
+        #yaw_rate_reward =  0.05 * (self.robot.GetBaseOrientationRollPitchYaw()[2] - angle) ** 2
+        yaw_orientation_reward = -0.05 * np.abs(angle - self.robot.GetBaseOrientationRollPitchYaw()[2])
         # minimize energy
         energy_reward = 0
         for tau, vel in zip(self._dt_motor_torques, self._dt_motor_velocities):
             energy_reward += np.abs(np.dot(tau, vel)) * self._time_step
 
-        reward = 10 * dist_reward \
-                 + 0.5 * yaw_rate_reward \
-                 - 0.05 * pitch_yaw_reward \
-                 - 0.001 * energy_reward
-                 #- 2 * vel_tracking_reward_z \
-                 #+ 0.75 * vel_tracking_reward_x \
-                 #+ 0.75 * vel_tracking_reward_y \
+        reward = + curr_dist_to_goal \
+                 + dist_reward \
+                 + des_vel_x \
+                 + des_vel_y \
+                 + capture_reward \
+                 + yaw_orientation_reward \
+                 - 0.03 * energy_reward
+        #print(f'reward: {reward}')
 
         return max(reward, 0)  # keep rewards positive
 
