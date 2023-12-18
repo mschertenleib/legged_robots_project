@@ -95,7 +95,7 @@ elif gait == "WALK":
 else:
     raise ValueError(gait + ' not implemented.')
 
-TEST_DURATION = 3
+TEST_DURATION = 10
 TEST_STEPS = int(TEST_DURATION / TIME_STEP)
 t = np.arange(TEST_STEPS) * TIME_STEP
 

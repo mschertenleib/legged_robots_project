@@ -28,21 +28,16 @@
 #
 # Copyright (c) 2022 EPFL, Guillaume Bellegarda
 
-import os, sys
-import gym
-import numpy as np
-import time
-import matplotlib
+import os
+
 import matplotlib.pyplot as plt
-from sys import platform
+
 # may be helpful depending on your system
 # if platform =="darwin": # mac
 #   import PyQt5
 #   matplotlib.use("Qt5Agg")
 # else: # linux
 #   matplotlib.use('TkAgg')
-
-import os
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
@@ -56,24 +51,24 @@ from stable_baselines3.common.env_util import make_vec_env  # fix for newer vers
 from env.quadruped_gym_env import QuadrupedGymEnv
 # utils
 from utils.utils import plot_results
-from utils.file_utils import get_latest_model, load_all_results
+from utils.file_utils import get_latest_model
 
 LEARNING_ALG = "PPO"
 interm_dir = "./logs/intermediate_models/"
-log_dir = interm_dir + 'PPO_CPG_COURSE_vel_0_1'
+log_dir = interm_dir + "PPO_PD_FLAGRUN_DEFAULT"
 
 # initialize env configs (render at test time)
 # check ideal conditions, as well as robustness to UNSEEN noise during training
-env_config = {"motor_control_mode": "CPG",
-              "task_env": "LR_COURSE_TASK",
-              "observation_space_mode": "LR_COURSE_OBS",
+env_config = {"motor_control_mode": "PD",
+              "task_env": "FLAGRUN",  # "LR_COURSE_TASK",
+              "observation_space_mode": "DEFAULT",  # "LR_COURSE_OBS",
               "test_env": False}
 
 env_config['render'] = True
-env_config['record_video'] = False
+env_config['record_video'] = True
 env_config['add_noise'] = False
 
-env_config['competition_env'] = False
+env_config['competition_env'] = True
 
 # get latest model and normalization stats, and plot 
 stats_path = os.path.join(log_dir, "vec_normalize.pkl")

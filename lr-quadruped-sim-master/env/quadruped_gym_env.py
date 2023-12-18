@@ -234,18 +234,18 @@ class QuadrupedGymEnv(gym.Env):
             # Note 50 is arbitrary below, you may have more or less
             # if using CPG-RL, remember to include limits on these
 
-            observation_high = (np.concatenate((np.array([10.0] * 4),  # r
-                                                np.array([1000.0] * 4),  # dr
-                                                # np.array([2.0 * np.pi + 0.001] * 4),  # theta
-                                                np.array([1000.0] * 4),  # dtheta
+            observation_high = (np.concatenate((np.array([4.0] * 4),  # r
+                                                np.array([40.0] * 4),  # dr
+                                                np.array([2.0 * np.pi + 0.001] * 4),  # theta
+                                                np.array([70.0] * 4),  # dtheta
                                                 self._robot_config.UPPER_ANGLE_JOINT,  # motor angles
                                                 self._robot_config.VELOCITY_LIMITS,  # motor velocities
                                                 np.array([1.0] * 4)))  # base orientation
                                 + OBSERVATION_EPS)
             observation_low = (np.concatenate((np.array([0.01] * 4),  # r
-                                               np.array([-1000.0] * 4),  # dr
-                                               # np.array([0.0] * 4),  # theta
-                                               np.array([-1000.0] * 4),  # dtheta
+                                               np.array([-40.0] * 4),  # dr
+                                               np.array([0.0] * 4),  # theta
+                                               np.array([-70.0] * 4),  # dtheta
                                                self._robot_config.LOWER_ANGLE_JOINT,  # motor angles
                                                -self._robot_config.VELOCITY_LIMITS,  # motor velocities
                                                np.array([-1.0] * 4)))  # base orientation
@@ -276,7 +276,7 @@ class QuadrupedGymEnv(gym.Env):
         elif self._observation_space_mode == "LR_COURSE_OBS":
             self._observation = np.concatenate((self._cpg.get_r(),
                                                 self._cpg.get_dr(),
-                                                # self._cpg.get_theta(),
+                                                self._cpg.get_theta(),
                                                 self._cpg.get_dtheta(),
                                                 self.robot.GetMotorAngles(),
                                                 self.robot.GetMotorVelocities(),
@@ -369,7 +369,7 @@ class QuadrupedGymEnv(gym.Env):
 
         dt = self._time_step
 
-        distance_to_goal, angle_to_goal = self.get_distance_and_angle_to_goal()
+        # distance_to_goal, angle_to_goal = self.get_distance_and_angle_to_goal()
 
         base_pos = self.robot.GetBasePosition()
         base_vel = self.robot.GetBaseLinearVelocity()
@@ -381,14 +381,14 @@ class QuadrupedGymEnv(gym.Env):
         yaw_rate = base_angular_vel[2]
         goal_vec = self._goal_location - base_pos[0:2]
 
-        desired_vel = 5.0 * unit_vector(goal_vec)
-        desired_yaw_rate = -0.5 * angle_to_goal
+        desired_vel = 1.0 * unit_vector(goal_vec)
+        desired_yaw_rate = 0.0  # -0.2 * angle_to_goal
 
         def f(x):
             return np.exp(-np.dot(x, x) / 0.25)
 
-        reward_vel_x = 0.75 * dt * f(desired_vel[0] - vel_x)
-        reward_vel_y = 0.75 * dt * f(desired_vel[1] - vel_y)
+        reward_vel_x = 5.0 * dt * f(desired_vel[0] - vel_x)
+        reward_vel_y = 5.0 * dt * f(desired_vel[1] - vel_y)
         reward_yaw_rate = 0.5 * dt * (desired_yaw_rate - yaw_rate)
         reward_vel_z = -2.0 * dt * vel_z ** 2
         reward_roll_pitch_rates = -0.05 * dt * np.dot(roll_pitch_rate, roll_pitch_rate)
@@ -404,8 +404,8 @@ class QuadrupedGymEnv(gym.Env):
                   + reward_roll_pitch_rates
                   + reward_work)
 
-        return reward
-        # return max(reward, 0)  # keep rewards positive
+        # return reward
+        return max(reward, 0)  # keep rewards positive
 
     def _reward_lr_course(self):
         """ Reward function for LR_COURSE_TASK. [TODO]"""

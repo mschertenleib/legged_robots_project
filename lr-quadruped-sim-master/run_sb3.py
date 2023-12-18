@@ -50,12 +50,12 @@ LEARNING_ALG = "PPO"  # or "SAC"
 LOAD_NN = False  # if you want to initialize training with a previous model
 NUM_ENVS = 1  # how many pybullet environments to create for data collection
 USE_GPU = False  # make sure to install all necessary drivers
-SAVE_DIR_NAME = "PPO_CPG_FLAGRUN_des_vel_5_05"
+SAVE_DIR_NAME = "PPO_PD_FLAGRUN_DEFAULT_higher_weights"
 
 # after implementing, you will want to test how well the agent learns with your MDP: 
-env_configs = {"motor_control_mode": "CPG",
+env_configs = {"motor_control_mode": "PD",
                "task_env": "FLAGRUN",  # "LR_COURSE_TASK",
-               "observation_space_mode": "LR_COURSE_OBS",
+               "observation_space_mode": "DEFAULT",  # "LR_COURSE_OBS",
                "test_env": False}
 
 if USE_GPU and LEARNING_ALG == "SAC":
