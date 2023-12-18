@@ -60,19 +60,20 @@ from utils.file_utils import get_latest_model, load_all_results
 
 LEARNING_ALG = "PPO"
 interm_dir = "./logs/intermediate_models/"
-log_dir = interm_dir + '121623223207'
+log_dir = interm_dir + 'PPO_CPG_COURSE_vel_0_1'
 
 # initialize env configs (render at test time)
 # check ideal conditions, as well as robustness to UNSEEN noise during training
 env_config = {"motor_control_mode": "CPG",
-              "task_env": "FLAGRUN",  # "LR_COURSE_TASK",
-              "observation_space_mode": "LR_COURSE_OBS"}
+              "task_env": "LR_COURSE_TASK",
+              "observation_space_mode": "LR_COURSE_OBS",
+              "test_env": False}
 
 env_config['render'] = True
 env_config['record_video'] = False
-env_config['add_noise'] = True
+env_config['add_noise'] = False
 
-# env_config['competition_env'] = True
+env_config['competition_env'] = False
 
 # get latest model and normalization stats, and plot 
 stats_path = os.path.join(log_dir, "vec_normalize.pkl")

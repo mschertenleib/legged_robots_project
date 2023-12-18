@@ -234,18 +234,18 @@ class QuadrupedGymEnv(gym.Env):
             # Note 50 is arbitrary below, you may have more or less
             # if using CPG-RL, remember to include limits on these
 
-            observation_high = (np.concatenate((np.array([8.0] * 4),  # r
-                                                np.array([100.0] * 4),  # dr
+            observation_high = (np.concatenate((np.array([10.0] * 4),  # r
+                                                np.array([1000.0] * 4),  # dr
                                                 # np.array([2.0 * np.pi + 0.001] * 4),  # theta
-                                                np.array([300.0] * 4),  # dtheta
+                                                np.array([1000.0] * 4),  # dtheta
                                                 self._robot_config.UPPER_ANGLE_JOINT,  # motor angles
                                                 self._robot_config.VELOCITY_LIMITS,  # motor velocities
                                                 np.array([1.0] * 4)))  # base orientation
                                 + OBSERVATION_EPS)
-            observation_low = (np.concatenate((np.array([0.0] * 4),  # r
-                                               np.array([0.0] * 4),  # dr
+            observation_low = (np.concatenate((np.array([0.01] * 4),  # r
+                                               np.array([-1000.0] * 4),  # dr
                                                # np.array([0.0] * 4),  # theta
-                                               np.array([0.0] * 4),  # dtheta
+                                               np.array([-1000.0] * 4),  # dtheta
                                                self._robot_config.LOWER_ANGLE_JOINT,  # motor angles
                                                -self._robot_config.VELOCITY_LIMITS,  # motor velocities
                                                np.array([-1.0] * 4)))  # base orientation
@@ -366,39 +366,46 @@ class QuadrupedGymEnv(gym.Env):
 
     def _reward_flag_run(self):
         """ Learn to move towards goal location. """
-        curr_dist_to_goal, angle_to_goal = self.get_distance_and_angle_to_goal()
 
         dt = self._time_step
 
-        velocity_x, velocity_y, velocity_z = self.robot.GetBaseLinearVelocity()
-        roll_pitch_rate = self.robot.GetBaseAngularVelocity()[0:2]
-        yaw_rate = self.robot.GetBaseAngularVelocity()[2]
-        yaw = self.robot.GetBaseOrientationRollPitchYaw()[2]
+        distance_to_goal, angle_to_goal = self.get_distance_and_angle_to_goal()
+
+        base_pos = self.robot.GetBasePosition()
+        base_vel = self.robot.GetBaseLinearVelocity()
+        base_angular_vel = self.robot.GetBaseAngularVelocity()
+        vel_x = base_vel[0]
+        vel_y = base_vel[1]
+        vel_z = base_vel[2]
+        roll_pitch_rate = base_angular_vel[0:2]
+        yaw_rate = base_angular_vel[2]
+        goal_vec = self._goal_location - base_pos[0:2]
+
+        desired_vel = 5.0 * unit_vector(goal_vec)
+        desired_yaw_rate = -0.5 * angle_to_goal
 
         def f(x):
             return np.exp(-np.dot(x, x) / 0.25)
 
-        # minimize distance to goal (we want to move towards the goal)
-        reward_distance = 40 * dt * (self._prev_pos_to_goal - curr_dist_to_goal)
-        reward_angle = 1.0 * dt * f(yaw - angle_to_goal)
-
-        reward_yaw_rate = 0.5 * dt * f(yaw_rate)
-        reward_velocity_z = 2.0 * dt * -velocity_z ** 2
+        reward_vel_x = 0.75 * dt * f(desired_vel[0] - vel_x)
+        reward_vel_y = 0.75 * dt * f(desired_vel[1] - vel_y)
+        reward_yaw_rate = 0.5 * dt * (desired_yaw_rate - yaw_rate)
+        reward_vel_z = -2.0 * dt * vel_z ** 2
         reward_roll_pitch_rates = -0.05 * dt * np.dot(roll_pitch_rate, roll_pitch_rate)
-
         reward_work = 0.0
         if len(self._dt_motor_velocities) >= 2:
             motor_velocity_delta = self._dt_motor_velocities[-1] - self._dt_motor_velocities[-2]
             reward_work = -0.001 * dt * np.abs(np.dot(self._dt_motor_torques[-1], motor_velocity_delta))
 
-        reward = (reward_distance
-                  + reward_angle
+        reward = (reward_vel_x
+                  + reward_vel_y
                   + reward_yaw_rate
-                  + reward_velocity_z
+                  + reward_vel_z
                   + reward_roll_pitch_rates
                   + reward_work)
 
-        return max(reward, 0)  # keep rewards positive
+        return reward
+        # return max(reward, 0)  # keep rewards positive
 
     def _reward_lr_course(self):
         """ Reward function for LR_COURSE_TASK. [TODO]"""
@@ -407,24 +414,20 @@ class QuadrupedGymEnv(gym.Env):
 
             dt = self._time_step
 
-            velocity_x, velocity_y, velocity_z = self.robot.GetBaseLinearVelocity()
+            velocity_xy = self.robot.GetBaseLinearVelocity()[0:2]
+            velocity_z = self.robot.GetBaseLinearVelocity()[2]
             roll_pitch_rate = self.robot.GetBaseAngularVelocity()[0:2]
             yaw_rate = self.robot.GetBaseAngularVelocity()[2]
 
-            desired_velocity_x, desired_velocity_y = 1.0, 0.0
-            desired_yaw_rate = 0.0
-
-            delta_velocity_x = velocity_x - desired_velocity_x
-            delta_velocity_y = velocity_y - desired_velocity_y
-            delta_yaw_rate = yaw_rate - desired_yaw_rate
+            desired_velocity = unit_vector(np.array([0.0, 1.0]))
 
             def f(x):
                 return np.exp(-np.dot(x, x) / 0.25)
 
-            reward_tracking_vel_x = 0.75 * dt * f(delta_velocity_x)
-            reward_tracking_vel_y = 0.75 * dt * f(delta_velocity_y)
-            reward_tracking_yaw_rate = 0.5 * dt * f(delta_yaw_rate)
-            reward_velocity_z = 2.0 * dt * -velocity_z ** 2
+            reward_forward = 1.0 * dt * f(velocity_xy - desired_velocity)
+            reward_lateral = -2.0 * dt * np.cross(unit_vector(desired_velocity), velocity_xy) ** 2
+            reward_velocity_z = -2.0 * dt * velocity_z ** 2
+            reward_yaw_rate = 0.5 * dt * f(yaw_rate)
             reward_roll_pitch_rates = -0.05 * dt * np.dot(roll_pitch_rate, roll_pitch_rate)
 
             reward_work = 0.0
@@ -432,10 +435,10 @@ class QuadrupedGymEnv(gym.Env):
                 motor_velocity_delta = self._dt_motor_velocities[-1] - self._dt_motor_velocities[-2]
                 reward_work = -0.001 * dt * np.abs(np.dot(self._dt_motor_torques[-1], motor_velocity_delta))
 
-            reward = (reward_tracking_vel_x
-                      + reward_tracking_vel_y
-                      + reward_tracking_yaw_rate
+            reward = (reward_forward
+                      + reward_lateral
                       + reward_velocity_z
+                      + reward_yaw_rate
                       + reward_roll_pitch_rates
                       + reward_work)
 

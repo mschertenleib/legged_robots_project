@@ -34,25 +34,29 @@ Check the documentation! https://stable-baselines3.readthedocs.io/en/master/
 """
 import os
 from datetime import datetime
-# stable baselines 3
-from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+
 from stable_baselines3 import PPO, SAC
 from stable_baselines3.common.env_util import make_vec_env
-# utils
-from utils.utils import CheckpointCallback
-from utils.file_utils import get_latest_model
+# stable baselines 3
+from stable_baselines3.common.vec_env import VecNormalize
+
 # gym environment
 from env.quadruped_gym_env import QuadrupedGymEnv
+from utils.file_utils import get_latest_model
+# utils
+from utils.utils import CheckpointCallback
 
 LEARNING_ALG = "PPO"  # or "SAC"
 LOAD_NN = False  # if you want to initialize training with a previous model
 NUM_ENVS = 1  # how many pybullet environments to create for data collection
 USE_GPU = False  # make sure to install all necessary drivers
+SAVE_DIR_NAME = "PPO_CPG_FLAGRUN_des_vel_5_05"
 
 # after implementing, you will want to test how well the agent learns with your MDP: 
 env_configs = {"motor_control_mode": "CPG",
                "task_env": "FLAGRUN",  # "LR_COURSE_TASK",
-               "observation_space_mode": "LR_COURSE_OBS"}
+               "observation_space_mode": "LR_COURSE_OBS",
+               "test_env": False}
 
 if USE_GPU and LEARNING_ALG == "SAC":
     gpu_arg = "auto"
@@ -66,7 +70,10 @@ if LOAD_NN:
     model_name = get_latest_model(log_dir)
 
 # directory to save policies and normalization parameters
-SAVE_PATH = './logs/intermediate_models/' + datetime.now().strftime("%m%d%y%H%M%S") + '/'
+if SAVE_DIR_NAME is not None:
+    SAVE_PATH = './logs/intermediate_models/' + SAVE_DIR_NAME + '/'
+else:
+    SAVE_PATH = './logs/intermediate_models/' + datetime.now().strftime("%m%d%y%H%M%S") + '/'
 os.makedirs(SAVE_PATH, exist_ok=True)
 # checkpoint to save policy network periodically
 checkpoint_callback = CheckpointCallback(save_freq=30000, save_path=SAVE_PATH, name_prefix='rl_model', verbose=2)
@@ -134,7 +141,7 @@ if LOAD_NN:
     print("\nLoaded model", model_name, "\n")
 
 # Learn and save (may need to train for longer)
-model.learn(total_timesteps=3000000, log_interval=1, callback=checkpoint_callback)
+model.learn(total_timesteps=10_000_000, log_interval=1, callback=checkpoint_callback)
 # Don't forget to save the VecNormalize statistics when saving the agent
 model.save(os.path.join(SAVE_PATH, "rl_model"))
 env.save(os.path.join(SAVE_PATH, "vec_normalize.pkl"))
