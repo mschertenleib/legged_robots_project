@@ -50,8 +50,8 @@ NUM_ENVS = 1  # how many pybullet environments to create for data collection
 USE_GPU = False  # make sure to install all necessary drivers
 
 # after implementing, you will want to test how well the agent learns with your MDP: 
-env_configs = {"motor_control_mode":"CPG",
-                "task_env": "FLAGRUN", #  "LR_COURSE_TASK",
+env_configs = {"motor_control_mode":"PD",
+                "task_env": "FWD_LOCOMOTION", #  "LR_COURSE_TASK",
                 "observation_space_mode": "LR_COURSE_OBS"}
 #env_configs = {}
 
@@ -62,7 +62,7 @@ else:
 
 if LOAD_NN:
     interm_dir = "./logs/intermediate_models/"
-    log_dir = interm_dir + ''  # add path
+    log_dir = interm_dir + '121723150633'  # add path
     stats_path = os.path.join(log_dir, "vec_normalize.pkl")
     model_name = get_latest_model(log_dir)
 
@@ -78,7 +78,7 @@ env = make_vec_env(env, monitor_dir=SAVE_PATH, n_envs=NUM_ENVS)
 env = VecNormalize(env, norm_obs=True, norm_reward=False, clip_obs=100.)
 
 if LOAD_NN:
-    env = lambda: QuadrupedGymEnv()
+    env = lambda: QuadrupedGymEnv(**env_configs)
     env = make_vec_env(env, n_envs=NUM_ENVS)
     env = VecNormalize.load(stats_path, env)
 
@@ -135,7 +135,7 @@ if LOAD_NN:
     print("\nLoaded model", model_name, "\n")
 
 # Learn and save (may need to train for longer)
-model.learn(total_timesteps=2000000, log_interval=1, callback=checkpoint_callback)
+model.learn(total_timesteps=1000000, log_interval=1, callback=checkpoint_callback)
 # Don't forget to save the VecNormalize statistics when saving the agent
 model.save(os.path.join(SAVE_PATH, "rl_model"))
 env.save(os.path.join(SAVE_PATH, "vec_normalize.pkl"))
