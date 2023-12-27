@@ -46,7 +46,7 @@ from env.hopf_network import HopfNetwork
 from env.quadruped_gym_env import QuadrupedGymEnv
 
 ADD_CARTESIAN_PD = False
-PLOT = False
+PLOT = True
 TIME_STEP = 0.001
 foot_y = 0.0838  # this is the hip length
 sideSign = np.array([-1, 1, -1, 1])  # get correct hip sign (body right is negative)
@@ -61,7 +61,7 @@ env = QuadrupedGymEnv(render=True,  # visualize
                       # record_video=True
                       )
 
-gait = "BOUND"
+gait = "PACE"
 
 if gait == "TROT":
     mu = 1
@@ -73,7 +73,7 @@ elif gait == "PACE":
     omega_stance = 3 * 2 * np.pi
 elif gait == "BOUND":
     mu = 1
-    omega_swing = 3 * 2 * np.pi
+    omega_swing = 5 * 2 * np.pi
     omega_stance = 2 * 2 * np.pi
 elif gait == "WALK":
     mu = 3
@@ -95,6 +95,7 @@ t = np.arange(TEST_STEPS) * TIME_STEP
 
 if PLOT:
     joint_pos = np.zeros((12, TEST_STEPS))
+    add_info = np.zeros((4, TEST_STEPS))
 
 # joint PD gains
 kp = np.array([100, 100, 100])
@@ -141,6 +142,7 @@ for j in range(TEST_STEPS):
 
     if PLOT:
         joint_pos[:, j] = q
+        add_info[:, j] = env.robot.GetBaseOrientation()
 
 #####################################################
 # PLOTS
@@ -157,5 +159,13 @@ if PLOT:
     plt.plot(t, joint_pos[3 * 0 + 0, :], label='FR hip')
     plt.plot(t, joint_pos[3 * 0 + 1, :], label='FR thigh')
     plt.plot(t, joint_pos[3 * 0 + 2, :], label='FR calf')
+    plt.legend()
+    plt.show()
+
+    plt.figure()
+    plt.plot(t, add_info[0, :], label='x1')
+    plt.plot(t, add_info[1, :], label='x2')
+    plt.plot(t, add_info[2, :], label='x3')
+    plt.plot(t, add_info[3, :], label='x4')
     plt.legend()
     plt.show()

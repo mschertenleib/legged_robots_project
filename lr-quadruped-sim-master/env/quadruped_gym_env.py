@@ -468,6 +468,15 @@ class QuadrupedGymEnv(gym.Env):
         # don't drift laterally
         drift_reward = -0.01 * abs(self.robot.GetBasePosition()[1])
 
+        clearance_reward = 0
+        current_base_position = self.robot.GetBasePosition()
+        body_height_reward = current_base_position[2]
+        CLEARANCE_HEIGHT    = 0.1
+        for i in range(4):
+            _, P = self.robot.ComputeJacobianAndPosition(i)
+            if (current_base_position[2] + P[2]) > CLEARANCE_HEIGHT:
+                clearance_reward += 1/4
+        clearance_reward = 4e-2 * clearance_reward
         # Yaw
         yaw_reward = -0.2 * np.abs(self.robot.GetBaseOrientationRollPitchYaw()[2])
         # Penalize for energy consumption
@@ -480,7 +489,7 @@ class QuadrupedGymEnv(gym.Env):
         orientation_penalty = orientation_penalty_weight * np.linalg.norm(current_orientation - np.array([0, 0, 0, 1]))
 
         # Calculate total reward
-        reward = vel_tracking_reward + direction_reward - energy_penalty - orientation_penalty + yaw_reward + drift_reward
+        reward = vel_tracking_reward + direction_reward - energy_penalty - orientation_penalty + yaw_reward + drift_reward + clearance_reward
         #print(f'reward: {reward}')
         return max(reward, 0)  # Ensure reward is non-negative
 
@@ -542,7 +551,7 @@ class QuadrupedGymEnv(gym.Env):
             # get Jacobian and foot position in leg frame for leg i (see ComputeJacobianAndPosition() in quadruped.py)
             J, foot_pos = self.robot.ComputeJacobianAndPosition(i)
             # desired foot position i (from RL above)
-            Pd = des_foot_pos[3 * i:3 * i + 3] #np.zeros(3)  # [TODO]
+            Pd = des_foot_pos[i,:] #np.zeros(3)  # [TODO]
             # desired foot velocity i
             vd = np.zeros(3)  # [TODO]
             # foot velocity in leg frame i (Equation 2)
