@@ -61,11 +61,11 @@ from utils.file_utils import get_latest_model, load_all_results
 LEARNING_ALG = "PPO"
 interm_dir = "./logs/intermediate_models/"
 # path to saved models, i.e. interm_dir + '121321105810'
-log_dir = interm_dir + '122723132758'
+log_dir = interm_dir + '123123153608'
 
 # initialize env configs (render at test time)
 # check ideal conditions, as well as robustness to UNSEEN noise during training
-env_config = {"motor_control_mode":"PD",
+env_config = {"motor_control_mode":"CARTESIAN_PD",
                 "task_env": "LR_COURSE_TASK", #  "LR_COURSE_TASK",
                 "observation_space_mode": "LR_COURSE_OBS"}
 
@@ -80,12 +80,13 @@ env_config['add_noise'] = False
 stats_path = os.path.join(log_dir, "vec_normalize.pkl")
 model_name = get_latest_model(log_dir)
 print("model_name", model_name)
-model_name = r"C:\Users\naeld\OneDrive - epfl.ch\EPFL_STUDIES\MA3 - 2023\Legged robotics\Prog\Project2\quadruped_locomotion\lr-quadruped-sim-master\logs\intermediate_models\122723132758\rl_model.zip"
+model_name = r"C:\Users\naeld\OneDrive - epfl.ch\EPFL_STUDIES\MA3 - 2023\Legged robotics\Prog\Project2\quadruped_locomotion\lr-quadruped-sim-master\logs\intermediate_models\123123153608\rl_model.zip"
 print("model_name", model_name)
 
 monitor_results = load_results(log_dir)
 print(monitor_results)
-plot_results([log_dir] , 10e10, 'timesteps', LEARNING_ALG + ' ')
+if len(monitor_results)>0:
+    plot_results([log_dir] , 10e10, 'timesteps', LEARNING_ALG + ' ')
 plt.show() 
 
 # reconstruct env 
@@ -108,6 +109,7 @@ episode_reward = 0
 # [TODO] initialize arrays to save data from simulation 
 #
 
+
 for i in range(2000):
     action, _states = model.predict(obs,deterministic=False) # sample at test time? ([TODO]: test)
     #print('action', action.shape)
@@ -120,6 +122,7 @@ for i in range(2000):
 
     # [TODO] save data from current robot states for plots 
     # To get base position, for example: env.envs[0].env.robot.GetBasePosition() 
+    #print(env.envs[0].env.reward_history)
     
 
 # [TODO] make plots:

@@ -187,6 +187,8 @@ class QuadrupedGymEnv(gym.Env):
         else:
             self._observation_noise_stdev = 0.0
 
+        self.reward_history = np.zeros((7,1000000)) #attempt to add reward hist
+
         # other bookkeeping
         self._num_bullet_solver_iterations = int(300 / action_repeat)
         self._env_step_counter = 0
@@ -446,14 +448,14 @@ class QuadrupedGymEnv(gym.Env):
 
     def _reward_lr_course(self):
         """ Reward function for LR_COURSE_TASK. [TODO]"""
-        des_vel_x = 4
+        des_vel_x = 1.5
         # Parameters to tune
-        direction_reward_weight = 1.0
+        direction_reward_weight = 0.05
         energy_penalty_weight = 0.008
         orientation_penalty_weight = 0.1
 
-        vel_tracking_reward = 0.05 * np.exp(-1 / 0.25 * (self.robot.GetBaseLinearVelocity()[0] - des_vel_x) ** 2)
-
+        #vel_tracking_reward = 0.05 * np.exp(-1 / 0.25 * (self.robot.GetBaseLinearVelocity()[0] - des_vel_x) ** 2)
+        vel_tracking_reward = 0.1 * self.robot.GetBaseLinearVelocity()[0]
         # Desired running direction - can be dynamically set or fixed
         desired_direction = np.array([1.0, 0.0])  # Example: right along the x-axis
 
@@ -471,14 +473,17 @@ class QuadrupedGymEnv(gym.Env):
         clearance_reward = 0
         current_base_position = self.robot.GetBasePosition()
         body_height_reward = current_base_position[2]
-        CLEARANCE_HEIGHT    = 0.1
+        CLEARANCE_HEIGHT = 0.08
         for i in range(4):
             _, P = self.robot.ComputeJacobianAndPosition(i)
             if (current_base_position[2] + P[2]) > CLEARANCE_HEIGHT:
                 clearance_reward += 1/4
-        clearance_reward = 4e-2 * clearance_reward
+        clearance_reward = 1e-2 * clearance_reward
         # Yaw
-        yaw_reward = -0.2 * np.abs(self.robot.GetBaseOrientationRollPitchYaw()[2])
+        roll_reward = -0.05 * np.abs(self.robot.GetBaseOrientationRollPitchYaw()[0])
+        pitch_reward = -0.05 * np.abs(self.robot.GetBaseOrientationRollPitchYaw()[1])
+        yaw_reward = -0.05 * np.abs(self.robot.GetBaseOrientationRollPitchYaw()[2])
+
         # Penalize for energy consumption
         energy_penalty = 0
         for tau, vel in zip(self._dt_motor_torques, self._dt_motor_velocities):
@@ -489,7 +494,29 @@ class QuadrupedGymEnv(gym.Env):
         orientation_penalty = orientation_penalty_weight * np.linalg.norm(current_orientation - np.array([0, 0, 0, 1]))
 
         # Calculate total reward
-        reward = vel_tracking_reward + direction_reward - energy_penalty - orientation_penalty + yaw_reward + drift_reward + clearance_reward
+        reward = vel_tracking_reward + direction_reward - energy_penalty - orientation_penalty + yaw_reward + drift_reward + clearance_reward + pitch_reward + yaw_reward
+        #self.reward_history[:,self._sim_step_counter]=[vel_tracking_reward,direction_reward,- energy_penalty, -orientation_penalty, yaw_reward, drift_reward, clearance_reward]
+        print(f"{vel_tracking_reward:.2f} {direction_reward:.2f} {-energy_penalty:.2f} {-orientation_penalty:.2f} {roll_reward:.2f} {pitch_reward:.2f} {yaw_reward:.2f} {drift_reward:.2f} {clearance_reward:.2f}")
+        #print(f'reward: {reward}')
+        return max(reward, 0)  # Ensure reward is non-negative
+
+    def _reward_lr_course_energy_only(self):
+        """ Reward function for LR_COURSE_TASK. [TODO]"""
+        energy_penalty_weight = 0.004
+        des_vel_x = 1.5
+        # Parameters to tune
+        vel_tracking_reward = 0.5 * np.exp(-1 / 0.25 * (self.robot.GetBaseLinearVelocity()[0] - des_vel_x) ** 2)
+        #print(f'vel reward : {vel_tracking_reward}')
+        energy_penalty = 0
+        for tau, vel in zip(self._dt_motor_torques, self._dt_motor_velocities):
+            energy_penalty += np.abs(np.dot(tau, vel)) * self._time_step
+        energy_penalty *= energy_penalty_weight
+        #print(f'energy penaltry: {energy_penalty}')
+
+        # Penalize for deviation in orientation
+
+        # Calculate total reward
+        reward = vel_tracking_reward - energy_penalty
         #print(f'reward: {reward}')
         return max(reward, 0)  # Ensure reward is non-negative
 
@@ -499,6 +526,8 @@ class QuadrupedGymEnv(gym.Env):
             return self._reward_fwd_locomotion()
         elif self._TASK_ENV == "LR_COURSE_TASK":
             return self._reward_lr_course()
+        elif self._TASK_ENV == "LR_COURSE_TASK_EN_ONLY":
+            return self._reward_lr_course_energy_only()
         elif self._TASK_ENV == "FLAGRUN":
             return self._reward_flag_run()
         else:
@@ -551,7 +580,7 @@ class QuadrupedGymEnv(gym.Env):
             # get Jacobian and foot position in leg frame for leg i (see ComputeJacobianAndPosition() in quadruped.py)
             J, foot_pos = self.robot.ComputeJacobianAndPosition(i)
             # desired foot position i (from RL above)
-            Pd = des_foot_pos[i,:] #np.zeros(3)  # [TODO]
+            Pd = des_foot_pos[3 * i:3 * i + 3] #np.zeros(3)  # [TODO]
             # desired foot velocity i
             vd = np.zeros(3)  # [TODO]
             # foot velocity in leg frame i (Equation 2)

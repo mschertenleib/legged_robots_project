@@ -50,8 +50,8 @@ NUM_ENVS = 1  # how many pybullet environments to create for data collection
 USE_GPU = False  # make sure to install all necessary drivers
 
 # after implementing, you will want to test how well the agent learns with your MDP: 
-env_configs = {"motor_control_mode":"PD",
-                "task_env": "FWD_LOCOMOTION", #  "LR_COURSE_TASK",
+env_configs = {"motor_control_mode":"CARTESIAN_PD",
+                "task_env": "LR_COURSE_TASK", #  "LR_COURSE_TASK",
                 "observation_space_mode": "LR_COURSE_OBS"}
 #env_configs = {}
 
@@ -62,9 +62,10 @@ else:
 
 if LOAD_NN:
     interm_dir = "./logs/intermediate_models/"
-    log_dir = interm_dir + '121723150633'  # add path
+    log_dir = interm_dir + '123023181704'  # add path
     stats_path = os.path.join(log_dir, "vec_normalize.pkl")
-    model_name = get_latest_model(log_dir)
+    #model_name = get_latest_model(log_dir)
+    model_name = os.path.join(log_dir,r"rl_model.zip")
 
 # directory to save policies and normalization parameters
 SAVE_PATH = './logs/intermediate_models/' + datetime.now().strftime("%m%d%y%H%M%S") + '/'
