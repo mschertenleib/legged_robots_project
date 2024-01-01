@@ -243,7 +243,7 @@ class QuadrupedGymEnv(gym.Env):
             LOWER_CONTACT_FRONT = [0.]*2
             UPPER_CONTACT_FRONT = [120.]*2
             LOWER_CONTACT_BACK = [0.]*2
-            UPPER_CONTACT_BACK = [500.]*2
+            UPPER_CONTACT_BACK = [120.]*2 #was 500
             LOWER_ROLL = [-0.05]
             UPPER_ROLL = [0.05]
             LOWER_PITCH = [-0.05]
