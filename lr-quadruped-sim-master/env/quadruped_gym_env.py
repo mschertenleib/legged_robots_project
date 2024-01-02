@@ -53,6 +53,7 @@ import quadruped
 import configs_a1 as robot_config
 from hopf_network import HopfNetwork
 
+PLOT_REWARD = True
 
 # few helpers
 def unit_vector(vector):
@@ -241,9 +242,9 @@ class QuadrupedGymEnv(gym.Env):
             UPPER_DTHETA = [40.]*4
             LOWER_DTHETA = [0.]*4
             LOWER_CONTACT_FRONT = [0.]*2
-            UPPER_CONTACT_FRONT = [120.]*2
+            UPPER_CONTACT_FRONT = [500.]*2
             LOWER_CONTACT_BACK = [0.]*2
-            UPPER_CONTACT_BACK = [120.]*2 #was 500
+            UPPER_CONTACT_BACK = [500.]*2 #was 500
             LOWER_ROLL = [-0.05]
             UPPER_ROLL = [0.05]
             LOWER_PITCH = [-0.05]
@@ -478,10 +479,10 @@ class QuadrupedGymEnv(gym.Env):
             _, P = self.robot.ComputeJacobianAndPosition(i)
             if (current_base_position[2] + P[2]) > CLEARANCE_HEIGHT:
                 clearance_reward += 1/4
-        clearance_reward = 1e-2 * clearance_reward
+        clearance_reward = 5e-3 * clearance_reward
         # Yaw
-        roll_reward = -0.05 * np.abs(self.robot.GetBaseOrientationRollPitchYaw()[0])
-        pitch_reward = -0.05 * np.abs(self.robot.GetBaseOrientationRollPitchYaw()[1])
+        roll_reward = -0.025 * np.abs(self.robot.GetBaseOrientationRollPitchYaw()[0])
+        pitch_reward = -0.025 * np.abs(self.robot.GetBaseOrientationRollPitchYaw()[1])
         yaw_reward = -0.05 * np.abs(self.robot.GetBaseOrientationRollPitchYaw()[2])
 
         # Penalize for energy consumption
@@ -496,7 +497,7 @@ class QuadrupedGymEnv(gym.Env):
         # Calculate total reward
         reward = vel_tracking_reward + direction_reward - energy_penalty - orientation_penalty + yaw_reward + drift_reward + clearance_reward + pitch_reward + yaw_reward
         #self.reward_history[:,self._sim_step_counter]=[vel_tracking_reward,direction_reward,- energy_penalty, -orientation_penalty, yaw_reward, drift_reward, clearance_reward]
-        print(f"{vel_tracking_reward:.2f} {direction_reward:.2f} {-energy_penalty:.2f} {-orientation_penalty:.2f} {roll_reward:.2f} {pitch_reward:.2f} {yaw_reward:.2f} {drift_reward:.2f} {clearance_reward:.2f}")
+        print(f"{vel_tracking_reward:.2f} {direction_reward:.2f} {-energy_penalty:.2f} {-orientation_penalty:.2f} {roll_reward:.2f} {pitch_reward:.2f} {yaw_reward:.2f} {drift_reward:.2f} {clearance_reward:.2f}") if PLOT_REWARD else None
         #print(f'reward: {reward}')
         return max(reward, 0)  # Ensure reward is non-negative
 
