@@ -38,12 +38,20 @@ from datetime import datetime
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from stable_baselines3 import PPO, SAC
 from stable_baselines3.common.env_util import make_vec_env
+import torch
 # utils
 from utils.utils import CheckpointCallback
 from utils.file_utils import get_latest_model
 # gym environment
 from env.quadruped_gym_env import QuadrupedGymEnv
 
+<<<<<<< Updated upstream
+=======
+LEARNING_ALG = "PPO"  # or "SAC"
+LOAD_NN = False  # if you want to initialize training with a previous model
+NUM_ENVS = 1  # how many pybullet environments to create for data collection
+USE_GPU = True  # make sure to install all necessary drivers
+>>>>>>> Stashed changes
 
 LEARNING_ALG = "PPO" # or "SAC"
 LOAD_NN = False # if you want to initialize training with a previous model 
@@ -52,6 +60,7 @@ USE_GPU = False # make sure to install all necessary drivers
 
 LEARNING_ALG = "SAC";  USE_GPU = True
 # after implementing, you will want to test how well the agent learns with your MDP: 
+<<<<<<< Updated upstream
 # env_configs = {"motor_control_mode":"CPG",
 #                "task_env": "FLAGRUN", #  "LR_COURSE_TASK",
 #                "observation_space_mode": "LR_COURSE_OBS"}
@@ -59,6 +68,16 @@ env_configs = {}
 
 if USE_GPU and LEARNING_ALG=="SAC":
     gpu_arg = "auto" 
+=======
+env_configs = {"motor_control_mode": "CPG",
+               "task_env": "FLAGRUN",  # "LR_COURSE_TASK",
+               "observation_space_mode": "LR_COURSE_OBS"}
+
+if USE_GPU and LEARNING_ALG == "SAC":
+    gpu_arg = "auto"
+elif USE_GPU and LEARNING_ALG == "PPO":
+    gpu_arg = "auto"
+>>>>>>> Stashed changes
 else:
     gpu_arg = "cpu"
 
@@ -87,6 +106,7 @@ if LOAD_NN:
 # Multi-layer perceptron (MLP) policy of two layers of size _,_ 
 policy_kwargs = dict(net_arch=[256,256])
 # What are these hyperparameters? Check here: https://stable-baselines3.readthedocs.io/en/master/modules/ppo.html
+<<<<<<< Updated upstream
 n_steps = 4096 
 learning_rate = lambda f: 1e-4 
 ppo_config = {  "gamma":0.99, 
@@ -105,6 +125,26 @@ ppo_config = {  "gamma":0.99,
                 "_init_setup_model":True, 
                 "policy_kwargs":policy_kwargs,
                 "device": gpu_arg}
+=======
+n_steps = 4096
+learning_rate = lambda f: 1e-4
+ppo_config = {"gamma": 0.99,
+              "n_steps": int(n_steps / NUM_ENVS),
+              "ent_coef": 0.0,
+              "learning_rate": learning_rate,
+              "vf_coef": 0.5,
+              "max_grad_norm": 0.5,
+              "gae_lambda": 0.95,
+              "batch_size": 256,
+              "n_epochs": 10,
+              "clip_range": 0.2,
+              "clip_range_vf": 1,
+              "verbose": 1,
+              "tensorboard_log": None,
+              "_init_setup_model": True,
+              "policy_kwargs": policy_kwargs,
+              "device": gpu_arg}
+>>>>>>> Stashed changes
 
 # What are these hyperparameters? Check here: https://stable-baselines3.readthedocs.io/en/master/modules/sac.html
 sac_config={"learning_rate":1e-4,
