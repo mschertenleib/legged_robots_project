@@ -47,10 +47,8 @@ from utils.file_utils import get_latest_model
 # utils
 from utils.utils import CheckpointCallback
 
-# TODO: look at the reward function in https://robot-parkour.github.io/resources/Robot_Parkour_Learning.pdf
-
 PARAMS_FROM_FILE = True
-PARAMS_FILE = "params_simple"
+PARAMS_FILE = "params_parkour"
 if PARAMS_FROM_FILE:
     params = importlib.import_module(PARAMS_FILE)
     LEARNING_ALG = params.LEARNING_ALG
@@ -105,7 +103,7 @@ if LOAD_NN:
 policy_kwargs = dict(net_arch=[128, 128, 128])
 # What are these hyperparameters? Check here: https://stable-baselines3.readthedocs.io/en/master/modules/ppo.html
 n_steps = 4096
-learning_rate = lambda f: 5e-4  # 1e-4
+learning_rate = lambda f: 1e-4
 ppo_config = {"gamma": 0.99,
               "n_steps": int(n_steps / NUM_ENVS),
               "ent_coef": 0.0,

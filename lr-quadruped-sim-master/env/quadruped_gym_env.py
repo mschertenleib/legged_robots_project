@@ -240,13 +240,24 @@ class QuadrupedGymEnv(gym.Env):
             observation_high = (np.concatenate((self._robot_config.UPPER_ANGLE_JOINT,  # motor angles
                                                 self._robot_config.VELOCITY_LIMITS,  # motor velocities
                                                 np.array([1.0] * 2),  # base roll and pitch
-                                                np.array([1] * 4)))  # foot contact
+                                                np.array([1.0] * 12)))  # last action
                                 + OBSERVATION_EPS)
             observation_low = (np.concatenate((self._robot_config.LOWER_ANGLE_JOINT,  # motor angles
                                                -self._robot_config.VELOCITY_LIMITS,  # motor velocities
                                                np.array([-1.0] * 2),  # base roll and pitch
-                                               np.array([0] * 4)))  # foot contact
+                                               np.array([-1.0] * 12)))  # last action
                                - OBSERVATION_EPS)
+
+            # observation_high = (np.concatenate((self._robot_config.UPPER_ANGLE_JOINT,  # motor angles
+            #                                     self._robot_config.VELOCITY_LIMITS,  # motor velocities
+            #                                     np.array([1.0] * 2),  # base roll and pitch
+            #                                     np.array([1] * 4)))  # foot contact
+            #                     + OBSERVATION_EPS)
+            # observation_low = (np.concatenate((self._robot_config.LOWER_ANGLE_JOINT,  # motor angles
+            #                                    -self._robot_config.VELOCITY_LIMITS,  # motor velocities
+            #                                    np.array([-1.0] * 2),  # base roll and pitch
+            #                                    np.array([0] * 4)))  # foot contact
+            #                    - OBSERVATION_EPS)
 
             # observation_high = (np.concatenate((np.array([4.0] * 4),  # r
             #                                     np.array([40.0] * 4),  # dr
@@ -291,7 +302,11 @@ class QuadrupedGymEnv(gym.Env):
             self._observation = np.concatenate((self.robot.GetMotorAngles(),
                                                 self.robot.GetMotorVelocities(),
                                                 self.robot.GetBaseOrientationRollPitchYaw()[0:2],
-                                                self.robot.GetContactInfo()[3]))
+                                                self._last_action))
+            # self._observation = np.concatenate((self.robot.GetMotorAngles(),
+            #                                     self.robot.GetMotorVelocities(),
+            #                                     self.robot.GetBaseOrientationRollPitchYaw()[0:2],
+            #                                     self.robot.GetContactInfo()[3]))
             # self._observation = np.concatenate((self._cpg.get_r(),
             #                                     self._cpg.get_dr(),
             #                                     self._cpg.get_theta(),
