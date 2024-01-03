@@ -54,6 +54,8 @@ import configs_a1 as robot_config
 from hopf_network import HopfNetwork
 
 
+PRINT_REWARD = False
+
 # few helpers
 def unit_vector(vector):
     """ Returns the unit vector of the vector.  """
@@ -177,6 +179,8 @@ class QuadrupedGymEnv(gym.Env):
         self._using_test_env = test_env
         self._using_competition_env = competition_env
         self.goal_id = None
+        self.velocity_hisory = 0
+        self.clearance = 0
         if competition_env:
             test_env = False
             self._using_test_env = False
@@ -455,7 +459,9 @@ class QuadrupedGymEnv(gym.Env):
         orientation_penalty_weight = 0.1
 
         #vel_tracking_reward = 0.05 * np.exp(-1 / 0.25 * (self.robot.GetBaseLinearVelocity()[0] - des_vel_x) ** 2)
-        vel_tracking_reward = 0.1 * self.robot.GetBaseLinearVelocity()[0]
+        vel_tracking_reward = 0.1 * (self.robot.GetBaseLinearVelocity()[0] + self.velocity_hisory)/2
+        self.velocity_hisory = self.robot.GetBaseLinearVelocity()[0]
+        vel_tracking_reward = min(vel_tracking_reward, 3) # cap reward 
         # Desired running direction - can be dynamically set or fixed
         desired_direction = np.array([1.0, 0.0])  # Example: right along the x-axis
 
@@ -463,12 +469,12 @@ class QuadrupedGymEnv(gym.Env):
         current_velocity = self.robot.GetBaseLinearVelocity()[:2]  # Get x, y components
         current_orientation = self.robot.GetBaseOrientation()
 
-        # Reward for moving in the desired direction
+        # Reward for) moving in the desired direction
         direction_reward = direction_reward_weight * np.dot(unit_vector(current_velocity), desired_direction)
 
 
         # don't drift laterally
-        drift_reward = -0.01 * abs(self.robot.GetBasePosition()[1])
+        drift_reward = -0.025 * abs(self.robot.GetBasePosition()[1])
 
         clearance_reward = 0
         current_base_position = self.robot.GetBasePosition()
@@ -476,9 +482,11 @@ class QuadrupedGymEnv(gym.Env):
         CLEARANCE_HEIGHT = 0.08
         for i in range(4):
             _, P = self.robot.ComputeJacobianAndPosition(i)
+            self.clearance = current_base_position[2]# + P[2]
             if (current_base_position[2] + P[2]) > CLEARANCE_HEIGHT:
                 clearance_reward += 1/4
         clearance_reward = 1e-2 * clearance_reward
+        clearance_reward = 0
         # Yaw
         roll_reward = -0.05 * np.abs(self.robot.GetBaseOrientationRollPitchYaw()[0])
         pitch_reward = -0.05 * np.abs(self.robot.GetBaseOrientationRollPitchYaw()[1])
@@ -496,7 +504,7 @@ class QuadrupedGymEnv(gym.Env):
         # Calculate total reward
         reward = vel_tracking_reward + direction_reward - energy_penalty - orientation_penalty + yaw_reward + drift_reward + clearance_reward + pitch_reward + yaw_reward
         #self.reward_history[:,self._sim_step_counter]=[vel_tracking_reward,direction_reward,- energy_penalty, -orientation_penalty, yaw_reward, drift_reward, clearance_reward]
-        print(f"{vel_tracking_reward:.2f} {direction_reward:.2f} {-energy_penalty:.2f} {-orientation_penalty:.2f} {roll_reward:.2f} {pitch_reward:.2f} {yaw_reward:.2f} {drift_reward:.2f} {clearance_reward:.2f}")
+        print(f"{vel_tracking_reward:.2f} {direction_reward:.2f} {-energy_penalty:.2f} {-orientation_penalty:.2f} {roll_reward:.2f} {pitch_reward:.2f} {yaw_reward:.2f} {drift_reward:.2f} {clearance_reward:.2f}") if PRINT_REWARD else None
         #print(f'reward: {reward}')
         return max(reward, 0)  # Ensure reward is non-negative
 
