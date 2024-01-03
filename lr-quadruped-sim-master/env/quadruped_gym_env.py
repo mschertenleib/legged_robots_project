@@ -139,6 +139,7 @@ class QuadrupedGymEnv(gym.Env):
             add_noise=True,
             test_env=False,
             competition_env=False,  # NOT ALLOWED FOR TRAINING!
+            reward_flag_run=None,
             **kwargs):  # any extra arguments from legacy
         """Initialize the quadruped gym environment.
 
@@ -213,6 +214,8 @@ class QuadrupedGymEnv(gym.Env):
         self.videoLogID = None
         self.seed()
         self.reset()
+
+        self._reward_flag_run_fn = reward_flag_run
 
     def setupCPG(self):
         self._cpg = HopfNetwork(use_RL=True)
@@ -367,45 +370,48 @@ class QuadrupedGymEnv(gym.Env):
     def _reward_flag_run(self):
         """ Learn to move towards goal location. """
 
-        dt = self._time_step
+        if self._reward_flag_run_fn is not None:
+            return self._reward_flag_run_fn(self)
+        else:
 
-        # distance_to_goal, angle_to_goal = self.get_distance_and_angle_to_goal()
+            dt = self._time_step
 
-        base_pos = self.robot.GetBasePosition()
-        base_vel = self.robot.GetBaseLinearVelocity()
-        base_angular_vel = self.robot.GetBaseAngularVelocity()
-        vel_x = base_vel[0]
-        vel_y = base_vel[1]
-        vel_z = base_vel[2]
-        roll_pitch_rate = base_angular_vel[0:2]
-        yaw_rate = base_angular_vel[2]
-        goal_vec = self._goal_location - base_pos[0:2]
+            # distance_to_goal, angle_to_goal = self.get_distance_and_angle_to_goal()
 
-        desired_vel = 1.0 * unit_vector(goal_vec)
-        desired_yaw_rate = 0.0  # -0.2 * angle_to_goal
+            base_pos = self.robot.GetBasePosition()
+            base_vel = self.robot.GetBaseLinearVelocity()
+            base_angular_vel = self.robot.GetBaseAngularVelocity()
+            vel_x = base_vel[0]
+            vel_y = base_vel[1]
+            vel_z = base_vel[2]
+            roll_pitch_rate = base_angular_vel[0:2]
+            yaw_rate = base_angular_vel[2]
+            goal_vec = self._goal_location - base_pos[0:2]
 
-        def f(x):
-            return np.exp(-np.dot(x, x) / 0.25)
+            desired_vel = 1.0 * unit_vector(goal_vec)
+            desired_yaw_rate = 0.0  # -0.2 * angle_to_goal
 
-        reward_vel_x = 5.0 * dt * f(desired_vel[0] - vel_x)
-        reward_vel_y = 5.0 * dt * f(desired_vel[1] - vel_y)
-        reward_yaw_rate = 0.5 * dt * (desired_yaw_rate - yaw_rate)
-        reward_vel_z = -2.0 * dt * vel_z ** 2
-        reward_roll_pitch_rates = -0.05 * dt * np.dot(roll_pitch_rate, roll_pitch_rate)
-        reward_work = 0.0
-        if len(self._dt_motor_velocities) >= 2:
-            motor_velocity_delta = self._dt_motor_velocities[-1] - self._dt_motor_velocities[-2]
-            reward_work = -0.001 * dt * np.abs(np.dot(self._dt_motor_torques[-1], motor_velocity_delta))
+            def f(x):
+                return np.exp(-np.dot(x, x) / 0.25)
 
-        reward = (reward_vel_x
-                  + reward_vel_y
-                  + reward_yaw_rate
-                  + reward_vel_z
-                  + reward_roll_pitch_rates
-                  + reward_work)
+            reward_vel_x = 5.0 * dt * f(desired_vel[0] - vel_x)
+            reward_vel_y = 5.0 * dt * f(desired_vel[1] - vel_y)
+            reward_yaw_rate = 0.5 * dt * (desired_yaw_rate - yaw_rate)
+            reward_vel_z = -2.0 * dt * vel_z ** 2
+            reward_roll_pitch_rates = -0.05 * dt * np.dot(roll_pitch_rate, roll_pitch_rate)
+            reward_work = 0.0
+            if len(self._dt_motor_velocities) >= 2:
+                motor_velocity_delta = self._dt_motor_velocities[-1] - self._dt_motor_velocities[-2]
+                reward_work = -0.001 * dt * np.abs(np.dot(self._dt_motor_torques[-1], motor_velocity_delta))
 
-        # return reward
-        return max(reward, 0)  # keep rewards positive
+            reward = (reward_vel_x
+                      + reward_vel_y
+                      + reward_yaw_rate
+                      + reward_vel_z
+                      + reward_roll_pitch_rates
+                      + reward_work)
+
+            return max(reward, 0)
 
     def _reward_lr_course(self):
         """ Reward function for LR_COURSE_TASK. [TODO]"""

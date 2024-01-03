@@ -28,6 +28,7 @@
 #
 # Copyright (c) 2022 EPFL, Guillaume Bellegarda
 
+import importlib
 import os
 
 import matplotlib.pyplot as plt
@@ -53,16 +54,26 @@ from env.quadruped_gym_env import QuadrupedGymEnv
 from utils.utils import plot_results
 from utils.file_utils import get_latest_model
 
-LEARNING_ALG = "PPO"
-interm_dir = "./logs/intermediate_models/"
-log_dir = interm_dir + "PPO_PD_FLAGRUN_DEFAULT_higher_weights"
+PARAMS_FROM_FILE = True
+PARAMS_FILE = "params_spin"
+if PARAMS_FROM_FILE:
+    params = importlib.import_module(PARAMS_FILE)
+    LEARNING_ALG = params.LEARNING_ALG
+    LOG_DIR_NAME = params.LOG_DIR_NAME
+    env_config = params.env_config
+else:
+    LEARNING_ALG = "PPO"
+    LOG_DIR_NAME = "PPO_PD_FLAGRUN_DEFAULT"
+    # initialize env configs (render at test time)
+    # check ideal conditions, as well as robustness to UNSEEN noise during training
+    env_config = {"motor_control_mode": "PD",
+                  "task_env": "LR_COURSE_TASK",
+                  "observation_space_mode": "LR_COURSE_OBS",
+                  "test_env": False,
+                  "reward_flag_run": None}
 
-# initialize env configs (render at test time)
-# check ideal conditions, as well as robustness to UNSEEN noise during training
-env_config = {"motor_control_mode": "PD",
-              "task_env": "FLAGRUN",  # "LR_COURSE_TASK",
-              "observation_space_mode": "DEFAULT",  # "LR_COURSE_OBS",
-              "test_env": False}
+interm_dir = "./logs/intermediate_models/"
+log_dir = interm_dir + LOG_DIR_NAME
 
 env_config['render'] = True
 env_config['record_video'] = False
@@ -70,7 +81,7 @@ env_config['add_noise'] = False
 
 env_config['competition_env'] = True
 
-# get latest model and normalization stats, and plot 
+# get latest model and normalization stats, and plot
 stats_path = os.path.join(log_dir, "vec_normalize.pkl")
 model_name = get_latest_model(log_dir)
 print("model_name", model_name)
@@ -80,7 +91,7 @@ print(monitor_results)
 plot_results([log_dir], 10e10, 'timesteps', LEARNING_ALG + ' ')
 plt.show()
 
-# reconstruct env 
+# reconstruct env
 env = lambda: QuadrupedGymEnv(**env_config)
 env = make_vec_env(env, n_envs=1)
 env = VecNormalize.load(stats_path, env)
@@ -97,7 +108,7 @@ print("\nLoaded model", model_name, "\n")
 obs = env.reset()
 episode_reward = 0
 
-# [TODO] initialize arrays to save data from simulation 
+# [TODO] initialize arrays to save data from simulation
 #
 
 for i in range(2000):
@@ -110,7 +121,7 @@ for i in range(2000):
         print('Final base position', info[0]['base_pos'])
         episode_reward = 0
 
-    # [TODO] save data from current robot states for plots 
-    # To get base position, for example: env.envs[0].env.robot.GetBasePosition() 
+    # [TODO] save data from current robot states for plots
+    # To get base position, for example: env.envs[0].env.robot.GetBasePosition()
 
 # [TODO] make plots:

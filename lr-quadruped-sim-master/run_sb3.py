@@ -32,6 +32,7 @@
 Run stable baselines 3 on quadruped env 
 Check the documentation! https://stable-baselines3.readthedocs.io/en/master/
 """
+import importlib
 import os
 from datetime import datetime
 
@@ -46,17 +47,27 @@ from utils.file_utils import get_latest_model
 # utils
 from utils.utils import CheckpointCallback
 
-LEARNING_ALG = "PPO"  # or "SAC"
+PARAMS_FROM_FILE = False
+PARAMS_FILE = "params_spin"
+if PARAMS_FROM_FILE:
+    params = importlib.import_module(PARAMS_FILE)
+    LEARNING_ALG = params.LEARNING_ALG
+    LOG_DIR_NAME = params.LOG_DIR_NAME
+    env_config = params.env_config
+else:
+    LEARNING_ALG = "PPO"  # "SAC"
+    LOG_DIR_NAME = None
+    # initialize env configs (render at test time)
+    # check ideal conditions, as well as robustness to UNSEEN noise during training
+    env_config = {"motor_control_mode": "PD",
+                  "task_env": "LR_COURSE_TASK",
+                  "observation_space_mode": "LR_COURSE_OBS",
+                  "test_env": False,
+                  "reward_flag_run": None}
+
 LOAD_NN = False  # if you want to initialize training with a previous model
 NUM_ENVS = 1  # how many pybullet environments to create for data collection
 USE_GPU = False  # make sure to install all necessary drivers
-SAVE_DIR_NAME = "PPO_PD_FLAGRUN_DEFAULT_higher_weights"
-
-# after implementing, you will want to test how well the agent learns with your MDP: 
-env_configs = {"motor_control_mode": "PD",
-               "task_env": "FLAGRUN",  # "LR_COURSE_TASK",
-               "observation_space_mode": "DEFAULT",  # "LR_COURSE_OBS",
-               "test_env": False}
 
 if USE_GPU and LEARNING_ALG == "SAC":
     gpu_arg = "auto"
@@ -70,15 +81,15 @@ if LOAD_NN:
     model_name = get_latest_model(log_dir)
 
 # directory to save policies and normalization parameters
-if SAVE_DIR_NAME is not None:
-    SAVE_PATH = './logs/intermediate_models/' + SAVE_DIR_NAME + '/'
+if LOG_DIR_NAME is not None:
+    SAVE_PATH = './logs/intermediate_models/' + LOG_DIR_NAME + '/'
 else:
     SAVE_PATH = './logs/intermediate_models/' + datetime.now().strftime("%m%d%y%H%M%S") + '/'
 os.makedirs(SAVE_PATH, exist_ok=True)
 # checkpoint to save policy network periodically
 checkpoint_callback = CheckpointCallback(save_freq=30000, save_path=SAVE_PATH, name_prefix='rl_model', verbose=2)
 # create Vectorized gym environment
-env = lambda: QuadrupedGymEnv(**env_configs)
+env = lambda: QuadrupedGymEnv(**env_config)
 env = make_vec_env(env, monitor_dir=SAVE_PATH, n_envs=NUM_ENVS)
 # normalize observations to stabilize learning (why?)
 env = VecNormalize(env, norm_obs=True, norm_reward=False, clip_obs=100.)
