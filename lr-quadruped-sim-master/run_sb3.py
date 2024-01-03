@@ -47,8 +47,8 @@ from utils.file_utils import get_latest_model
 # utils
 from utils.utils import CheckpointCallback
 
-PARAMS_FROM_FILE = False
-PARAMS_FILE = "params_spin"
+PARAMS_FROM_FILE = True
+PARAMS_FILE = "params_simple"
 if PARAMS_FROM_FILE:
     params = importlib.import_module(PARAMS_FILE)
     LEARNING_ALG = params.LEARNING_ALG
@@ -99,11 +99,11 @@ if LOAD_NN:
     env = make_vec_env(env, n_envs=NUM_ENVS)
     env = VecNormalize.load(stats_path, env)
 
-# Multi-layer perceptron (MLP) policy of two layers of size _,_ 
-policy_kwargs = dict(net_arch=[256, 256])
+# Multi-layer perceptron (MLP) policy
+policy_kwargs = dict(net_arch=[128, 128, 128])
 # What are these hyperparameters? Check here: https://stable-baselines3.readthedocs.io/en/master/modules/ppo.html
 n_steps = 4096
-learning_rate = lambda f: 1e-4
+learning_rate = lambda f: 5e-4  # 1e-4
 ppo_config = {"gamma": 0.99,
               "n_steps": int(n_steps / NUM_ENVS),
               "ent_coef": 0.0,

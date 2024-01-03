@@ -237,22 +237,33 @@ class QuadrupedGymEnv(gym.Env):
             # Note 50 is arbitrary below, you may have more or less
             # if using CPG-RL, remember to include limits on these
 
-            observation_high = (np.concatenate((np.array([4.0] * 4),  # r
-                                                np.array([40.0] * 4),  # dr
-                                                np.array([2.0 * np.pi + 0.001] * 4),  # theta
-                                                np.array([70.0] * 4),  # dtheta
-                                                self._robot_config.UPPER_ANGLE_JOINT,  # motor angles
+            observation_high = (np.concatenate((self._robot_config.UPPER_ANGLE_JOINT,  # motor angles
                                                 self._robot_config.VELOCITY_LIMITS,  # motor velocities
-                                                np.array([1.0] * 4)))  # base orientation
+                                                np.array([1.0] * 2),  # base roll and pitch
+                                                np.array([1] * 4)))  # foot contact
                                 + OBSERVATION_EPS)
-            observation_low = (np.concatenate((np.array([0.01] * 4),  # r
-                                               np.array([-40.0] * 4),  # dr
-                                               np.array([0.0] * 4),  # theta
-                                               np.array([-70.0] * 4),  # dtheta
-                                               self._robot_config.LOWER_ANGLE_JOINT,  # motor angles
+            observation_low = (np.concatenate((self._robot_config.LOWER_ANGLE_JOINT,  # motor angles
                                                -self._robot_config.VELOCITY_LIMITS,  # motor velocities
-                                               np.array([-1.0] * 4)))  # base orientation
+                                               np.array([-1.0] * 2),  # base roll and pitch
+                                               np.array([0] * 4)))  # foot contact
                                - OBSERVATION_EPS)
+
+            # observation_high = (np.concatenate((np.array([4.0] * 4),  # r
+            #                                     np.array([40.0] * 4),  # dr
+            #                                     np.array([2.0 * np.pi + 0.001] * 4),  # theta
+            #                                     np.array([70.0] * 4),  # dtheta
+            #                                     self._robot_config.UPPER_ANGLE_JOINT,  # motor angles
+            #                                     self._robot_config.VELOCITY_LIMITS,  # motor velocities
+            #                                     np.array([1.0] * 4)))  # base orientation
+            #                     + OBSERVATION_EPS)
+            # observation_low = (np.concatenate((np.array([0.01] * 4),  # r
+            #                                    np.array([-40.0] * 4),  # dr
+            #                                    np.array([0.0] * 4),  # theta
+            #                                    np.array([-70.0] * 4),  # dtheta
+            #                                    self._robot_config.LOWER_ANGLE_JOINT,  # motor angles
+            #                                    -self._robot_config.VELOCITY_LIMITS,  # motor velocities
+            #                                    np.array([-1.0] * 4)))  # base orientation
+            #                    - OBSERVATION_EPS)
         else:
             raise ValueError("observation space not defined or not intended")
 
@@ -277,13 +288,17 @@ class QuadrupedGymEnv(gym.Env):
                                                 self.robot.GetMotorVelocities(),
                                                 self.robot.GetBaseOrientation()))
         elif self._observation_space_mode == "LR_COURSE_OBS":
-            self._observation = np.concatenate((self._cpg.get_r(),
-                                                self._cpg.get_dr(),
-                                                self._cpg.get_theta(),
-                                                self._cpg.get_dtheta(),
-                                                self.robot.GetMotorAngles(),
+            self._observation = np.concatenate((self.robot.GetMotorAngles(),
                                                 self.robot.GetMotorVelocities(),
-                                                self.robot.GetBaseOrientation()))
+                                                self.robot.GetBaseOrientationRollPitchYaw()[0:2],
+                                                self.robot.GetContactInfo()[3]))
+            # self._observation = np.concatenate((self._cpg.get_r(),
+            #                                     self._cpg.get_dr(),
+            #                                     self._cpg.get_theta(),
+            #                                     self._cpg.get_dtheta(),
+            #                                     self.robot.GetMotorAngles(),
+            #                                     self.robot.GetMotorVelocities(),
+            #                                     self.robot.GetBaseOrientation()))
             # [TODO] Get observation from robot. What are reasonable measurements we could get on hardware?
 
         else:
@@ -633,6 +648,7 @@ class QuadrupedGymEnv(gym.Env):
         # save motor torques and velocities to compute power in reward function
         self._dt_motor_torques = []
         self._dt_motor_velocities = []
+        self._dt_motor_angles = []
         self._dt_feet_forces = []
         if "FLAGRUN" in self._TASK_ENV:
             self._prev_pos_to_goal, _ = self.get_distance_and_angle_to_goal()
@@ -647,6 +663,7 @@ class QuadrupedGymEnv(gym.Env):
             self._sim_step_counter += 1
             self._dt_motor_torques.append(self.robot.GetMotorTorques())
             self._dt_motor_velocities.append(self.robot.GetMotorVelocities())
+            self._dt_motor_angles.append(self.robot.GetMotorAngles())
             self._dt_feet_forces.append(np.array(self.robot.GetContactInfo()[2]))
 
             if self._is_render:
