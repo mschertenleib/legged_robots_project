@@ -173,6 +173,7 @@ class HopfNetwork():
     # mod phase variables to keep between 0 and 2pi
     self.X[1,:] = self.X[1,:] % (2*np.pi)
 
+<<<<<<< Updated upstream
 
   ###################### Helper functions for accessing CPG States
   def get_r(self):
@@ -182,6 +183,43 @@ class HopfNetwork():
   def get_theta(self):
     """ Get CPG phases (theta) """
     return self.X[1,:]
+=======
+        
+        self.PHI_bound = np.float32([[0, 0, np.pi, np.pi],
+                                     [0, 0, np.pi, np.pi],
+                                     [-np.pi, -np.pi, 0, 0],
+                                     [-np.pi, -np.pi, 0, 0]])
+        
+        self.PHI_fastbound = np.float32([[0, 0, np.pi, np.pi],
+                                        [0, 0, np.pi, np.pi],
+                                        [np.pi, np.pi, 0, 0],
+                                        [np.pi, np.pi, 0, 0]])
+
+        self.PHI_pace = np.float32([[0, np.pi, 0, np.pi],
+                                    [np.pi, 0, np.pi, 0],
+                                    [0, np.pi, 0, np.pi],
+                                    [np.pi, 0, np.pi, 0]])
+        
+        self.PHI_pronk = np.float32([[0,0,0,0],
+                                    [0,0,0,0],
+                                    [0,0,0,0],
+                                    [0,0,0,0]])
+
+        if gait == "TROT":
+            self.PHI = self.PHI_trot
+        elif gait == "PACE":
+            self.PHI = self.PHI_pace
+        elif gait == "BOUND":
+            self.PHI = self.PHI_bound
+        elif gait == "FAST_BOUND":
+            self.PHI = self.PHI_fastbound
+        elif gait == "WALK":
+            self.PHI = self.PHI_walk
+        elif gait == "PRONK":
+            self.PHI = self.PHI_pronk
+        else:
+            raise ValueError(gait + ' not implemented.')
+>>>>>>> Stashed changes
 
   def get_dr(self):
     """ Get CPG amplitude derivatives (r_dot) """
