@@ -47,6 +47,8 @@ from utils.file_utils import get_latest_model
 # utils
 from utils.utils import CheckpointCallback
 
+# TODO: look at the reward function in https://robot-parkour.github.io/resources/Robot_Parkour_Learning.pdf
+
 PARAMS_FROM_FILE = True
 PARAMS_FILE = "params_simple"
 if PARAMS_FROM_FILE:
