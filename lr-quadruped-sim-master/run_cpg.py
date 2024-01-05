@@ -45,24 +45,23 @@ from matplotlib import pyplot as plt
 from env.hopf_network import HopfNetwork
 from env.quadruped_gym_env import QuadrupedGymEnv
 
-<<<<<<< Updated upstream
 
-ADD_CARTESIAN_PD = True
-TIME_STEP = 0.001
-foot_y = 0.0838 # this is the hip length 
-sideSign = np.array([-1, 1, -1, 1]) # get correct hip sign (body right is negative)
-=======
-ADD_CARTESIAN_PD = True
 PLOT = True
+SAVEFIG = False
+TEST_DURATION = 3
 TIME_STEP = 0.001
+
+ADD_CARTESIAN_PD = False
+POSTURECTRL = False
+RAMPSPD = False
+
 foot_y = 0.0838  # this is the hip length
 sideSign = np.array([-1, 1, -1, 1])  # get correct hip sign (body right is negative)
 rmass = 12 # A1 mass in kg
-POSTURECTRL = False
+
 hspdavg = 0
 hspdh = np.zeros(1000) #avg of speed past 1 sec
 hspdidx = 0
->>>>>>> Stashed changes
 
 env = QuadrupedGymEnv(render=True,              # visualize
                     on_rack=False,              # useful for debugging! 
@@ -74,17 +73,18 @@ env = QuadrupedGymEnv(render=True,              # visualize
                     # record_video=True
                     )
 
-<<<<<<< Updated upstream
 # initialize Hopf Network, supply gait
 cpg = HopfNetwork(time_step=TIME_STEP)
 
-TEST_STEPS = int(10 / (TIME_STEP))
-t = np.arange(TEST_STEPS)*TIME_STEP
-=======
+TEST_STEPS = int(TEST_DURATION / TIME_STEP)
+t = np.arange(TEST_STEPS) * TIME_STEP
+
 gait = "TROT"
 
 if gait == "TROT":
     stepfreq = 12
+    if RAMPSPD:
+        stepfreq = 10
     ratio = 0.3
     cpg = HopfNetwork(time_step=TIME_STEP,
                       gait=gait,
@@ -133,12 +133,7 @@ elif gait == "PRONK":
                       omega_stance=5 * 2 * np.pi)
 else:
     raise ValueError(gait + ' not implemented.')
->>>>>>> Stashed changes
 
-# [TODO] initialize data structures to save CPG and robot states
-
-<<<<<<< Updated upstream
-=======
 if PLOT:
     joint_pos = np.zeros((12, TEST_STEPS))
     cpg_states = np.zeros((16,TEST_STEPS))
@@ -147,62 +142,25 @@ if PLOT:
     energy = np.zeros(TEST_STEPS)
     spd = np.zeros((3,TEST_STEPS))
     Cot = np.zeros(TEST_STEPS)
->>>>>>> Stashed changes
 
 ############## Sample Gains
 # joint PD gains
 kp=np.array([100,100,100])
 kd=np.array([2,2,2])
 # Cartesian PD gains
-<<<<<<< Updated upstream
-kpCartesian = np.diag([500]*3)
-kdCartesian = np.diag([20]*3)
-=======
 kpCartesian = np.diag([1200] * 3)
 kdCartesian = np.diag([20] * 3)
 # posture control
 pKp = np.diag([100,100,10])
 yxzshift = [1,2,1]
->>>>>>> Stashed changes
+#speed control
+spdfact = 1
 
 for j in range(TEST_STEPS):
-  # initialize torque array to send to motors
-  action = np.zeros(12) 
-  # get desired foot positions from CPG 
-  xs,zs = cpg.update()
-  # [TODO] get current motor angles and velocities for joint PD, see GetMotorAngles(), GetMotorVelocities() in quadruped.py
-  # q = env.robot.GetMotorAngles()
-  # dq = 
-
-<<<<<<< Updated upstream
-  # loop through desired foot positions and calculate torques
-  for i in range(4):
-    # initialize torques for legi
-    tau = np.zeros(3)
-    # get desired foot i pos (xi, yi, zi) in leg frame
-    leg_xyz = np.array([xs[i],sideSign[i] * foot_y,zs[i]])
-    # call inverse kinematics to get corresponding joint angles (see ComputeInverseKinematics() in quadruped.py)
-    leg_q = np.zeros(3) # [TODO] 
-    # Add joint PD contribution to tau for leg i (Equation 4)
-    tau += np.zeros(3) # [TODO] 
-
-    # add Cartesian PD contribution
-    if ADD_CARTESIAN_PD:
-      # Get current Jacobian and foot position in leg frame (see ComputeJacobianAndPosition() in quadruped.py)
-      # [TODO] 
-      # Get current foot velocity in leg frame (Equation 2)
-      # [TODO] 
-      # Calculate torque contribution from Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
-      tau += np.zeros(3) # [TODO]
-
-    # Set tau for legi in action vector
-    action[3*i:3*i+3] = tau
-
-  # send torques to robot and simulate TIME_STEP seconds 
-  env.step(action) 
-=======
-    # xs = [0,0,0,0]
-    # zs = [-0.3,-0.3,-0.3,-0.3]
+    # initialize torque array to send to motors
+    action = np.zeros(12) 
+    # get desired foot positions from CPG 
+    xs,zs = cpg.update()
 
     q = env.robot.GetMotorAngles()
     dq = env.robot.GetMotorVelocities()
@@ -241,46 +199,38 @@ for j in range(TEST_STEPS):
             leg_corr_xyz = leg_xyz + [-foot_pos[2]*np.tan(ori[1])*yxzshift[0],foot_pos[2]*np.tan(ori[0])*yxzshift[1],zcont*yxzshift[2]]
             tau += np.transpose(J) @ (pKp @ (leg_corr_xyz - foot_pos))
 
+        if RAMPSPD:
+            spx = env.robot.GetBaseLinearVelocity()[0]
+            cspdest = cpg._mu*cpg._des_step_len*cpg._omega_stance
+            print((cspdest - spx))
+            stepfreq += spdfact*(cspdest - spx)
+            cpg._omega_swing= stepfreq*(1-ratio) * 2 * np.pi
+            cpg._omega_stance= stepfreq*(ratio) * 2 * np.pi
 
         # Set tau for legi in action vector
         action[3 * i : 3 * i + 3] = tau
->>>>>>> Stashed changes
 
-  # [TODO] save any CPG or robot states
-
-
-<<<<<<< Updated upstream
-
-##################################################### 
-# PLOTS
-#####################################################
-# example
-# fig = plt.figure()
-# plt.plot(t,joint_pos[1,:], label='FR thigh')
-# plt.legend()
-# plt.show()
-=======
-    if PLOT:
-        energy[j] = abs(np.dot(env.robot.GetMotorTorques(),dq))
-        spd[:,j] = env.robot.GetBaseLinearVelocity()
-        Cot[j] = (energy[j]*TIME_STEP)/(np.linalg.norm(spd[:,j])*TIME_STEP*rmass)
-        hspdh[hspdidx] = np.linalg.norm(spd[0:2,j])
-        hspdidx = hspdidx+1 if hspdidx+1<1000 else 0
-        hspdavg = np.mean(hspdh)
-        joint_pos[:, j] = q
-        cpg_states[0:4,j] = cpg.get_r()
-        cpg_states[4:8,j] = cpg.get_theta()
-        cpg_states[8:12,j] = cpg.get_dr()
-        cpg_states[12:16,j] = cpg.get_dtheta()
-        cpg_coord[:,j] = np.reshape([xs,zs],(8,))
-        _,rpos = env.robot.ComputeJacobianAndPosition(0)
-        foots_coord[0:3,j] = rpos
-        _,rpos = env.robot.ComputeJacobianAndPosition(1)
-        foots_coord[3:6,j] = rpos
-        _,rpos = env.robot.ComputeJacobianAndPosition(2)
-        foots_coord[6:9,j] = rpos
-        _,rpos = env.robot.ComputeJacobianAndPosition(3)
-        foots_coord[9:12,j] = rpos
+        if PLOT:
+            energy[j] = abs(np.dot(env.robot.GetMotorTorques(),dq))
+            spd[:,j] = env.robot.GetBaseLinearVelocity()
+            Cot[j] = (energy[j]*TIME_STEP)/(np.linalg.norm(spd[:,j])*TIME_STEP*rmass)
+            hspdh[hspdidx] = np.linalg.norm(spd[0:2,j])
+            hspdidx = hspdidx+1 if hspdidx+1<1000 else 0
+            hspdavg = np.mean(hspdh)
+            joint_pos[:, j] = q
+            cpg_states[0:4,j] = cpg.get_r()
+            cpg_states[4:8,j] = cpg.get_theta()
+            cpg_states[8:12,j] = cpg.get_dr()
+            cpg_states[12:16,j] = cpg.get_dtheta()
+            cpg_coord[:,j] = np.reshape([xs,zs],(8,))
+            _,rpos = env.robot.ComputeJacobianAndPosition(0)
+            foots_coord[0:3,j] = rpos
+            _,rpos = env.robot.ComputeJacobianAndPosition(1)
+            foots_coord[3:6,j] = rpos
+            _,rpos = env.robot.ComputeJacobianAndPosition(2)
+            foots_coord[6:9,j] = rpos
+            _,rpos = env.robot.ComputeJacobianAndPosition(3)
+            foots_coord[9:12,j] = rpos
 
 print('\033[91m' + "##### FINAL SPEED = {} #####".format(hspdavg) + '\033[0m')
 #####################################################
@@ -303,7 +253,7 @@ if PLOT:
     # plt.show()
 
     
-    if True: #Cot speed
+    if False: #Cot speed
    
         fig = plt.figure(figsize=(8, 10)) 
         fig.suptitle("{} at {:.2f} m/s".format(gait,hspdavg)) 
@@ -324,7 +274,7 @@ if PLOT:
         plt.tight_layout()  
         plt.show()
 
-    if False: # foot pos
+    if True: # foot pos
         fig, ax = plt.subplots(2, 2, figsize=(10, 8))  # Adjust the figure size as needed
         fig.suptitle("Foot Positions: {} \n PD kp: {}, kd: {} \n Cart PD kp: {}, kd: {}".format(gait,kp[0],kd[0],kpCartesian[0][0],kdCartesian[0][0]))
 
@@ -344,7 +294,8 @@ if PLOT:
             axis.legend()
 
         plt.tight_layout()
-        plt.savefig("..\PLOTS\CPG\\foot{}_{}-{}-{}-{}".format(gait,kp[0],kd[0],kpCartesian[0],kdCartesian[0]))
+        if SAVEFIG:
+            plt.savefig("..\PLOTS\CPG\\foot{}_{}-{}-{}-{}".format(gait,kp[0],kd[0],kpCartesian[0],kdCartesian[0]))
         plt.show()
 
     if False: # cpg states   
@@ -394,9 +345,9 @@ if PLOT:
             ax.legend()
 
         plt.tight_layout()
-        if ADD_CARTESIAN_PD:
-            plt.savefig("..\PLOTS\CPG\\joint{}_kp{}kd{}_ckp{}ckd{}".format(gait,kp[0],kd[0],kpCartesian[0][0],kdCartesian[0][0]))
-        else:
-            plt.savefig("..\PLOTS\CPG\\joint{}_kp{}kd{}".format(gait,kp[0],kd[0]))
+        if SAVEFIG:
+            if ADD_CARTESIAN_PD:
+                plt.savefig("..\PLOTS\CPG\\joint{}_kp{}kd{}_ckp{}ckd{}".format(gait,kp[0],kd[0],kpCartesian[0][0],kdCartesian[0][0]))
+            else:
+                plt.savefig("..\PLOTS\CPG\\joint{}_kp{}kd{}".format(gait,kp[0],kd[0]))
         plt.show()
->>>>>>> Stashed changes
