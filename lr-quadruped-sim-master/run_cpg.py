@@ -232,6 +232,9 @@ for j in range(TEST_STEPS):
             _,rpos = env.robot.ComputeJacobianAndPosition(3)
             foots_coord[9:12,j] = rpos
 
+    # send torques to robot and simulate TIME_STEP seconds
+    env.step(action)
+    
 print('\033[91m' + "##### FINAL SPEED = {} #####".format(hspdavg) + '\033[0m')
 
 #####################################################
