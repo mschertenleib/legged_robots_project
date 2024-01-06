@@ -26,7 +26,7 @@ def reward_flag_run(self: QuadrupedGymEnv):
 
     reward_vel_x = 5.0 * dt * f(desired_vel[0] - vel_x)
     reward_vel_y = 5.0 * dt * f(desired_vel[1] - vel_y)
-    reward_yaw_rate = 0.5 * dt * (desired_yaw_rate - yaw_rate)
+    reward_yaw_rate = 1.0 * dt * f(desired_yaw_rate - yaw_rate)
     reward_vel_z = -2.0 * dt * vel_z ** 2
     reward_roll_pitch_rates = -0.05 * dt * np.dot(roll_pitch_rate, roll_pitch_rate)
     reward_work = 0.0
@@ -41,12 +41,20 @@ def reward_flag_run(self: QuadrupedGymEnv):
               + reward_roll_pitch_rates
               + reward_work)
 
+    """print(
+        f"{reward_vel_x:.4f} "
+        f"{reward_vel_y:.4f} "
+        f"{reward_yaw_rate:.4f} "
+        f"{reward_vel_z:.4f} "
+        f"{reward_roll_pitch_rates:.4f} "
+        f"{reward_work:.4f} ")"""
+
     # return reward
     return max(reward, 0)  # keep rewards positive
 
 
 LEARNING_ALG = "PPO"
-LOG_DIR_NAME = "spin"
+LOG_DIR_NAME = "spin2"
 env_config = {"motor_control_mode": "PD",
               "task_env": "FLAGRUN",
               "observation_space_mode": "DEFAULT",

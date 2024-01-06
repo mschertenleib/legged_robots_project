@@ -55,7 +55,7 @@ from utils.utils import plot_results
 from utils.file_utils import get_latest_model
 
 PARAMS_FROM_FILE = True
-PARAMS_FILE = "params_parkour"
+PARAMS_FILE = "params_simple"
 if PARAMS_FROM_FILE:
     params = importlib.import_module(PARAMS_FILE)
     LEARNING_ALG = params.LEARNING_ALG
@@ -78,8 +78,7 @@ log_dir = interm_dir + LOG_DIR_NAME
 env_config['render'] = True
 env_config['record_video'] = False
 env_config['add_noise'] = False
-
-env_config['competition_env'] = True
+env_config['competition_env'] = False
 
 # get latest model and normalization stats, and plot
 stats_path = os.path.join(log_dir, "vec_normalize.pkl")

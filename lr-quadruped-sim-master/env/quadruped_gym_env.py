@@ -441,7 +441,7 @@ class QuadrupedGymEnv(gym.Env):
                       + reward_roll_pitch_rates
                       + reward_work)
 
-            return max(reward, 0)
+            return reward
 
     def _reward_lr_course(self):
         """ Reward function for LR_COURSE_TASK. [TODO]"""
@@ -678,8 +678,8 @@ class QuadrupedGymEnv(gym.Env):
             self._sim_step_counter += 1
             self._dt_motor_torques.append(self.robot.GetMotorTorques())
             self._dt_motor_velocities.append(self.robot.GetMotorVelocities())
-            self._dt_motor_angles.append(self.robot.GetMotorAngles())
-            self._dt_feet_forces.append(np.array(self.robot.GetContactInfo()[2]))
+            # self._dt_motor_angles.append(self.robot.GetMotorAngles())
+            # self._dt_feet_forces.append(np.array(self.robot.GetContactInfo()[2]))
 
             if self._is_render:
                 self._render_step_helper()

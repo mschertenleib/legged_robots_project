@@ -48,7 +48,7 @@ from utils.file_utils import get_latest_model
 from utils.utils import CheckpointCallback
 
 PARAMS_FROM_FILE = True
-PARAMS_FILE = "params_parkour"
+PARAMS_FILE = "params_simple"
 if PARAMS_FROM_FILE:
     params = importlib.import_module(PARAMS_FILE)
     LEARNING_ALG = params.LEARNING_ALG
@@ -100,7 +100,7 @@ if LOAD_NN:
     env = VecNormalize.load(stats_path, env)
 
 # Multi-layer perceptron (MLP) policy
-policy_kwargs = dict(net_arch=[128, 128, 128])
+policy_kwargs = dict(net_arch=[256, 256])
 # What are these hyperparameters? Check here: https://stable-baselines3.readthedocs.io/en/master/modules/ppo.html
 n_steps = 4096
 learning_rate = lambda f: 1e-4
