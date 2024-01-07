@@ -11,7 +11,7 @@ def reward_flag_run(self: QuadrupedGymEnv):
         np.dot(self.robot.GetMotorTorques(), self.robot.GetMotorVelocities())) * self._time_step
     reward_orientation = -0.1 * np.linalg.norm(base_orientation - np.array([0, 0, 0, 1]))
     reward_drift = -0.1 * np.abs(base_pos[1])
-    reward_height = -0.1 * np.abs(base_pos[2] - 0.3)
+    reward_height = -0.1 * np.abs(base_pos[2] - 0.35)
 
     reward = (reward_velocity
               + reward_energy
@@ -28,7 +28,7 @@ def reward_flag_run(self: QuadrupedGymEnv):
 
 
 LEARNING_ALG = "PPO"
-LOG_DIR_NAME = "bellegarda_straight_1"
+LOG_DIR_NAME = "bellegarda_straight"
 env_config = {"motor_control_mode": "CARTESIAN_PD",
               "task_env": "FLAGRUN",
               "observation_space_mode": "DEFAULT",
