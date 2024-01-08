@@ -240,12 +240,18 @@ class QuadrupedGymEnv(gym.Env):
             observation_high = (np.concatenate((self._robot_config.UPPER_ANGLE_JOINT,  # motor angles
                                                 self._robot_config.VELOCITY_LIMITS,  # motor velocities
                                                 np.array([1.0] * 2),  # base roll and pitch
-                                                np.array([1.0] * 12)))  # last action
+                                                np.array([100.0] * 2),  # base roll and pitch velocities
+                                                np.array([0.5]),  # base z
+                                                np.array([10.0]),  # base z velocity
+                                                np.array([1.0] * 4)))  # feet contact info
                                 + OBSERVATION_EPS)
             observation_low = (np.concatenate((self._robot_config.LOWER_ANGLE_JOINT,  # motor angles
                                                -self._robot_config.VELOCITY_LIMITS,  # motor velocities
                                                np.array([-1.0] * 2),  # base roll and pitch
-                                               np.array([-1.0] * 12)))  # last action
+                                               np.array([-100.0] * 2),  # base roll and pitch velocities
+                                               np.array([0.2]),  # base z
+                                               np.array([-10.0]),  # base z velocity
+                                               np.array([0.0] * 4)))  # feet contact info
                                - OBSERVATION_EPS)
 
             # observation_high = (np.concatenate((self._robot_config.UPPER_ANGLE_JOINT,  # motor angles
@@ -302,7 +308,10 @@ class QuadrupedGymEnv(gym.Env):
             self._observation = np.concatenate((self.robot.GetMotorAngles(),
                                                 self.robot.GetMotorVelocities(),
                                                 self.robot.GetBaseOrientationRollPitchYaw()[0:2],
-                                                self._last_action))
+                                                self.robot.GetBaseAngularVelocity()[0:2],
+                                                [self.robot.GetBasePosition()[2]],
+                                                [self.robot.GetBaseLinearVelocity()[2]],
+                                                self.robot.GetContactInfo()[3]))
             # self._observation = np.concatenate((self.robot.GetMotorAngles(),
             #                                     self.robot.GetMotorVelocities(),
             #                                     self.robot.GetBaseOrientationRollPitchYaw()[0:2],

@@ -48,7 +48,7 @@ from utils.file_utils import get_latest_model
 from utils.utils import CheckpointCallback
 
 PARAMS_FROM_FILE = True
-PARAMS_FILE = "params_bellegarda"
+PARAMS_FILE = "params_bellegarda_flagrun_directiondsdasdsafdas"
 if PARAMS_FROM_FILE:
     params = importlib.import_module(PARAMS_FILE)
     LEARNING_ALG = params.LEARNING_ALG

@@ -7,17 +7,15 @@ def reward_flag_run(self: QuadrupedGymEnv):
 
     distance_to_goal, angle_to_goal = self.get_distance_and_angle_to_goal()
 
-    reward_forward = 0.5 * (self._prev_pos_to_goal - distance_to_goal) / self._time_step
-    # reward_yaw = -0.1 * np.abs(angle_to_goal)
-    reward_orientation = -0.5 * np.linalg.norm(roll_pitch)
+    reward_forward = 1.0 * (self._prev_pos_to_goal - distance_to_goal) / self._time_step
     reward_energy = -0.008 * np.abs(
         np.dot(self.robot.GetMotorTorques(), self.robot.GetMotorVelocities())) * self._time_step
-    reward_height = -0.5 * np.abs(base_pos[2] - 0.35)
+    reward_orientation = -0.1 * np.linalg.norm(roll_pitch)
+    reward_height = -0.1 * np.abs(base_pos[2] - 0.35)
 
     reward = (reward_forward
-              # + reward_yaw
-              + reward_orientation
               + reward_energy
+              + reward_orientation
               + reward_height)
 
     """print(
@@ -29,9 +27,9 @@ def reward_flag_run(self: QuadrupedGymEnv):
 
 
 LEARNING_ALG = "PPO"
-LOG_DIR_NAME = "bellegarda_flagrun"
+LOG_DIR_NAME = "bellegarda_flagrun_delta"
 env_config = {"motor_control_mode": "CARTESIAN_PD",
               "task_env": "FLAGRUN",
-              "observation_space_mode": "DEFAULT",
+              "observation_space_mode": "LR_COURSE_OBS",
               "test_env": False,
               "reward_flag_run": reward_flag_run}

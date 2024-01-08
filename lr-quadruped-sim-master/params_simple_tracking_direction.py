@@ -10,16 +10,17 @@ def reward_flag_run(self: QuadrupedGymEnv):
     roll_pitch = self.robot.GetBaseOrientationRollPitchYaw()[0:2]
 
     target_vel_xy = unit_vector(self._goal_location - base_pos[0:2])
-    # target_vel_xy = np.array([1.0, 0.0])
     vel_forward = np.dot(target_vel_xy, vel_xy)
     vel_lateral = np.cross(target_vel_xy, vel_xy)
 
-    reward_forward = 10.0 * vel_forward
-    reward_lateral = -5.0 * vel_lateral ** 2
+    reward_forward = 100.0 * vel_forward
+    reward_lateral = -10.0 * vel_lateral ** 2
     reward_roll_pitch = -5.0 * np.dot(roll_pitch, roll_pitch)
     reward_z = -4.0 * vel_z ** 2
-    reward_energy = -0.01 * np.abs(
-        np.dot(self.robot.GetMotorTorques(), self.robot.GetMotorVelocities())) * self._time_step
+    reward_energy = 0.0
+    for tau, vel in zip(self._dt_motor_torques, self._dt_motor_velocities):
+        reward_energy += np.abs(np.dot(tau, vel)) * self._time_step
+    reward_energy *= -0.01
 
     reward = (reward_forward
               + reward_lateral
@@ -38,15 +39,9 @@ def reward_flag_run(self: QuadrupedGymEnv):
 
 
 LEARNING_ALG = "PPO"
-LOG_DIR_NAME = "simple_tracking_pd"
+LOG_DIR_NAME = "simple_tracking_direction"
 env_config = {"motor_control_mode": "PD",
               "task_env": "FLAGRUN",
-              "observation_space_mode": "DEFAULT",
+              "observation_space_mode": "LR_COURSE_OBS",
               "test_env": False,
               "reward_flag_run": reward_flag_run}
-
-# NOTE: the observation space includes:
-# - Motor angles
-# - Motor velocities,
-# - Base roll and pitch,
-# - Last action
