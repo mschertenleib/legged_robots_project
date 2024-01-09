@@ -48,7 +48,7 @@ from utils.file_utils import get_latest_model
 from utils.utils import CheckpointCallback
 
 PARAMS_FROM_FILE = True
-PARAMS_FILE = "params_simple_direction"
+PARAMS_FILE = "params_vanilla"
 if PARAMS_FROM_FILE:
     params = importlib.import_module(PARAMS_FILE)
     LEARNING_ALG = params.LEARNING_ALG

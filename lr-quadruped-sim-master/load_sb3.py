@@ -28,6 +28,7 @@
 #
 # Copyright (c) 2022 EPFL, Guillaume Bellegarda
 
+import importlib
 import os, sys
 import gym
 import numpy as np
@@ -75,7 +76,6 @@ else:
                   "test_env": False,
                   "reward_flag_run": None}
 
-LEARNING_ALG = "PPO"
 interm_dir = "./logs/intermediate_models/"
 # path to saved models, i.e. interm_dir + '121321105810'
 log_dir = interm_dir + LOG_DIR_NAME
@@ -89,8 +89,6 @@ env_config['competition_env'] = False
 # get latest model and normalization stats, and plot 
 stats_path = os.path.join(log_dir, "vec_normalize.pkl")
 model_name = get_latest_model(log_dir)
-print("model_name", model_name)
-model_name = os.path.join(log_dir,"rl_model.zip")
 print("model_name", model_name)
 
 monitor_results = load_results(log_dir)
