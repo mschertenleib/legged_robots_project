@@ -50,7 +50,7 @@ NUM_ENVS = 1  # how many pybullet environments to create for data collection
 USE_GPU = False  # make sure to install all necessary drivers
 
 # after implementing, you will want to test how well the agent learns with your MDP: 
-env_configs = {"motor_control_mode":"CARTESIAN_PD",
+env_configs = {"motor_control_mode":"CPG",
                 "task_env": "LR_COURSE_TASK", #  "LR_COURSE_TASK",
                 "observation_space_mode": "LR_COURSE_OBS"}
 #env_configs = {}
@@ -84,7 +84,7 @@ if LOAD_NN:
     env = VecNormalize.load(stats_path, env)
 
 # Multi-layer perceptron (MLP) policy of two layers of size _,_ 
-policy_kwargs = dict(net_arch=[256, 256])
+policy_kwargs = dict(net_arch=[256, 256, 256])
 # What are these hyperparameters? Check here: https://stable-baselines3.readthedocs.io/en/master/modules/ppo.html
 n_steps = 4096
 learning_rate = lambda f: 1e-4
