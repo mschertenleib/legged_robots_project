@@ -119,15 +119,20 @@ class HopfNetwork():
                                     [3 * np.pi / 2, np.pi / 2, 0, np.pi],
                                     [np.pi / 2, 3 * np.pi / 2, np.pi, 0]])
 
-        self.PHI_bound = np.float32([[0, 0, np.pi, np.pi],
-                                     [0, 0, np.pi, np.pi],
+        self.PHI_bound = np.float32([[np.pi, np.pi, 0, 0],
                                      [np.pi, np.pi, 0, 0],
-                                     [np.pi, np.pi, 0, 0]])
+                                     [0, 0, -np.pi, -np.pi],
+                                     [0, 0, -np.pi, -np.pi]])
 
         self.PHI_pace = np.float32([[0, np.pi, 0, np.pi],
                                     [np.pi, 0, np.pi, 0],
                                     [0, np.pi, 0, np.pi],
                                     [np.pi, 0, np.pi, 0]])
+        
+        self.PHI_pronk = np.float32([[0,0,0,0],
+                                    [0,0,0,0],
+                                    [0,0,0,0],
+                                    [0,0,0,0]])
 
         if gait == "TROT":
             self.PHI = self.PHI_trot
@@ -137,6 +142,8 @@ class HopfNetwork():
             self.PHI = self.PHI_bound
         elif gait == "WALK":
             self.PHI = self.PHI_walk
+        elif gait == "PRONK":
+            self.PHI = self.PHI_pronk
         else:
             raise ValueError(gait + ' not implemented.')
 
