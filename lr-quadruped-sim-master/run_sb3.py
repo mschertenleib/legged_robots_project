@@ -32,28 +32,42 @@
 Run stable baselines 3 on quadruped env 
 Check the documentation! https://stable-baselines3.readthedocs.io/en/master/
 """
+import importlib
 import os
 from datetime import datetime
-# stable baselines 3
-from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+
 from stable_baselines3 import PPO, SAC
 from stable_baselines3.common.env_util import make_vec_env
-# utils
-from utils.utils import CheckpointCallback
-from utils.file_utils import get_latest_model
+# stable baselines 3
+from stable_baselines3.common.vec_env import VecNormalize
+
 # gym environment
 from env.quadruped_gym_env import QuadrupedGymEnv
+from utils.file_utils import get_latest_model
+# utils
+from utils.utils import CheckpointCallback
 
-LEARNING_ALG = "PPO"  # or "SAC"
+PARAMS_FROM_FILE = True
+PARAMS_FILE = "params_simple_direction"
+if PARAMS_FROM_FILE:
+    params = importlib.import_module(PARAMS_FILE)
+    LEARNING_ALG = params.LEARNING_ALG
+    LOG_DIR_NAME = params.LOG_DIR_NAME
+    env_config = params.env_config
+else:
+    LEARNING_ALG = "PPO"  # "SAC"
+    LOG_DIR_NAME = None
+    # initialize env configs (render at test time)
+    # check ideal conditions, as well as robustness to UNSEEN noise during training
+    env_config = {"motor_control_mode": "PD",
+                  "task_env": "LR_COURSE_TASK",
+                  "observation_space_mode": "LR_COURSE_OBS",
+                  "test_env": False,
+                  "reward_flag_run": None}
+
 LOAD_NN = False  # if you want to initialize training with a previous model
 NUM_ENVS = 1  # how many pybullet environments to create for data collection
 USE_GPU = False  # make sure to install all necessary drivers
-
-# after implementing, you will want to test how well the agent learns with your MDP: 
-env_configs = {"motor_control_mode":"CPG",
-                "task_env": "LR_COURSE_TASK", #  "LR_COURSE_TASK",
-                "observation_space_mode": "LR_COURSE_OBS"}
-#env_configs = {}
 
 if USE_GPU and LEARNING_ALG == "SAC":
     gpu_arg = "auto"
@@ -62,29 +76,31 @@ else:
 
 if LOAD_NN:
     interm_dir = "./logs/intermediate_models/"
-    log_dir = interm_dir + '123023181704'  # add path
+    log_dir = interm_dir + '121623223207'  # add path
     stats_path = os.path.join(log_dir, "vec_normalize.pkl")
-    #model_name = get_latest_model(log_dir)
-    model_name = os.path.join(log_dir,r"rl_model.zip")
+    model_name = get_latest_model(log_dir)
 
 # directory to save policies and normalization parameters
-SAVE_PATH = './logs/intermediate_models/' + datetime.now().strftime("%m%d%y%H%M%S") + '/'
+if LOG_DIR_NAME is not None:
+    SAVE_PATH = './logs/intermediate_models/' + LOG_DIR_NAME + '/'
+else:
+    SAVE_PATH = './logs/intermediate_models/' + datetime.now().strftime("%m%d%y%H%M%S") + '/'
 os.makedirs(SAVE_PATH, exist_ok=True)
 # checkpoint to save policy network periodically
 checkpoint_callback = CheckpointCallback(save_freq=30000, save_path=SAVE_PATH, name_prefix='rl_model', verbose=2)
 # create Vectorized gym environment
-env = lambda: QuadrupedGymEnv(**env_configs)
+env = lambda: QuadrupedGymEnv(**env_config)
 env = make_vec_env(env, monitor_dir=SAVE_PATH, n_envs=NUM_ENVS)
 # normalize observations to stabilize learning (why?)
 env = VecNormalize(env, norm_obs=True, norm_reward=False, clip_obs=100.)
 
 if LOAD_NN:
-    env = lambda: QuadrupedGymEnv(**env_configs)
+    env = lambda: QuadrupedGymEnv()
     env = make_vec_env(env, n_envs=NUM_ENVS)
     env = VecNormalize.load(stats_path, env)
 
-# Multi-layer perceptron (MLP) policy of two layers of size _,_ 
-policy_kwargs = dict(net_arch=[256, 256, 256])
+# Multi-layer perceptron (MLP) policy
+policy_kwargs = dict(net_arch=[256, 256])
 # What are these hyperparameters? Check here: https://stable-baselines3.readthedocs.io/en/master/modules/ppo.html
 n_steps = 4096
 learning_rate = lambda f: 1e-4
@@ -96,7 +112,7 @@ ppo_config = {"gamma": 0.99,
               "max_grad_norm": 0.5,
               "gae_lambda": 0.95,
               "batch_size": 128,
-              "n_epochs": 10,
+              "n_epochs": 20,
               "clip_range": 0.2,
               "clip_range_vf": 1,
               "verbose": 1,
@@ -136,7 +152,7 @@ if LOAD_NN:
     print("\nLoaded model", model_name, "\n")
 
 # Learn and save (may need to train for longer)
-model.learn(total_timesteps=1000000, log_interval=1, callback=checkpoint_callback)
+model.learn(total_timesteps=10_000_000, log_interval=1, callback=checkpoint_callback)
 # Don't forget to save the VecNormalize statistics when saving the agent
 model.save(os.path.join(SAVE_PATH, "rl_model"))
 env.save(os.path.join(SAVE_PATH, "vec_normalize.pkl"))

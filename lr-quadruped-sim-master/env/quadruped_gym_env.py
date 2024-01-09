@@ -138,6 +138,7 @@ class QuadrupedGymEnv(gym.Env):
             add_noise=True,
             test_env=False,
             competition_env=False,  # NOT ALLOWED FOR TRAINING!
+            reward_flag_run=None,
             **kwargs):  # any extra arguments from legacy
         """Initialize the quadruped gym environment.
 
@@ -216,6 +217,8 @@ class QuadrupedGymEnv(gym.Env):
         self.videoLogID = None
         self.seed()
         self.reset()
+        
+        self._reward_flag_run_fn = reward_flag_run
 
     def setupCPG(self):
         self._cpg = HopfNetwork(use_RL=True)
@@ -236,7 +239,53 @@ class QuadrupedGymEnv(gym.Env):
             # [TODO] Set observation upper and lower ranges. What are reasonable limits?
             # Note 50 is arbitrary below, you may have more or less
             # if using CPG-RL, remember to include limits on these
-            UPPER_R = [1.]*4
+
+            observation_high = (np.concatenate((self._robot_config.UPPER_ANGLE_JOINT,  # motor angles
+                                                self._robot_config.VELOCITY_LIMITS,  # motor velocities
+                                                np.array([1.0] * 2),  # base roll and pitch
+                                                np.array([100.0] * 2),  # base roll and pitch velocities
+                                                np.array([0.5]),  # base z
+                                                np.array([10.0]),  # base z velocity
+                                                np.array([1.0] * 4)))  # feet contact info
+                                + OBSERVATION_EPS)
+            observation_low = (np.concatenate((self._robot_config.LOWER_ANGLE_JOINT,  # motor angles
+                                               -self._robot_config.VELOCITY_LIMITS,  # motor velocities
+                                               np.array([-1.0] * 2),  # base roll and pitch
+                                               np.array([-100.0] * 2),  # base roll and pitch velocities
+                                               np.array([0.2]),  # base z
+                                               np.array([-10.0]),  # base z velocity
+                                               np.array([0.0] * 4)))  # feet contact info
+                               - OBSERVATION_EPS)
+
+            # observation_high = (np.concatenate((self._robot_config.UPPER_ANGLE_JOINT,  # motor angles
+            #                                     self._robot_config.VELOCITY_LIMITS,  # motor velocities
+            #                                     np.array([1.0] * 2),  # base roll and pitch
+            #                                     np.array([1] * 4)))  # foot contact
+            #                     + OBSERVATION_EPS)
+            # observation_low = (np.concatenate((self._robot_config.LOWER_ANGLE_JOINT,  # motor angles
+            #                                    -self._robot_config.VELOCITY_LIMITS,  # motor velocities
+            #                                    np.array([-1.0] * 2),  # base roll and pitch
+            #                                    np.array([0] * 4)))  # foot contact
+            #                    - OBSERVATION_EPS)
+
+            # observation_high = (np.concatenate((np.array([4.0] * 4),  # r
+            #                                     np.array([40.0] * 4),  # dr
+            #                                     np.array([2.0 * np.pi + 0.001] * 4),  # theta
+            #                                     np.array([70.0] * 4),  # dtheta
+            #                                     self._robot_config.UPPER_ANGLE_JOINT,  # motor angles
+            #                                     self._robot_config.VELOCITY_LIMITS,  # motor velocities
+            #                                     np.array([1.0] * 4)))  # base orientation
+            #                     + OBSERVATION_EPS)
+            # observation_low = (np.concatenate((np.array([0.01] * 4),  # r
+            #                                    np.array([-40.0] * 4),  # dr
+            #                                    np.array([0.0] * 4),  # theta
+            #                                    np.array([-70.0] * 4),  # dtheta
+            #                                    self._robot_config.LOWER_ANGLE_JOINT,  # motor angles
+            #                                    -self._robot_config.VELOCITY_LIMITS,  # motor velocities
+            #                                    np.array([-1.0] * 4)))  # base orientation
+            #                    - OBSERVATION_EPS)
+            
+            """UPPER_R = [1.]*4
             LOWER_R = [0.]*4
             UPPER_DR = [20.]*4
             LOWER_DR = [0.]*4
@@ -259,7 +308,7 @@ class QuadrupedGymEnv(gym.Env):
             observation_high = (np.concatenate((UPPER_R,UPPER_DR,UPPER_THETA,UPPER_DTHETA,UPPER_ROLL,UPPER_PITCH,UPPER_YAW,UPPER_CONTACT_FRONT,UPPER_CONTACT_BACK,
                                                 np.array([1.0] * 4))) + OBSERVATION_EPS)
             observation_low = (np.concatenate((LOWER_R,LOWER_DR,LOWER_THETA,LOWER_DTHETA,LOWER_ROLL,LOWER_PITCH,LOWER_YAW,LOWER_CONTACT_FRONT,LOWER_CONTACT_BACK,
-                                               np.array([-1.0] * 4))) - OBSERVATION_EPS)
+                                               np.array([-1.0] * 4))) - OBSERVATION_EPS)"""
             
         else:
             raise ValueError("observation space not defined or not intended")
@@ -285,15 +334,33 @@ class QuadrupedGymEnv(gym.Env):
                                                 self.robot.GetMotorVelocities(),
                                                 self.robot.GetBaseOrientation()))
         elif self._observation_space_mode == "LR_COURSE_OBS":
+            self._observation = np.concatenate((self.robot.GetMotorAngles(),
+                                                self.robot.GetMotorVelocities(),
+                                                self.robot.GetBaseOrientationRollPitchYaw()[0:2],
+                                                self.robot.GetBaseAngularVelocity()[0:2],
+                                                [self.robot.GetBasePosition()[2]],
+                                                [self.robot.GetBaseLinearVelocity()[2]],
+                                                self.robot.GetContactInfo()[3]))
+            # self._observation = np.concatenate((self.robot.GetMotorAngles(),
+            #                                     self.robot.GetMotorVelocities(),
+            #                                     self.robot.GetBaseOrientationRollPitchYaw()[0:2],
+            #                                     self.robot.GetContactInfo()[3]))
+            # self._observation = np.concatenate((self._cpg.get_r(),
+            #                                     self._cpg.get_dr(),
+            #                                     self._cpg.get_theta(),
+            #                                     self._cpg.get_dtheta(),
+            #                                     self.robot.GetMotorAngles(),
+            #                                     self.robot.GetMotorVelocities(),
+            #                                     self.robot.GetBaseOrientation()))
 
-            self._observation = np.concatenate((self._cpg.get_r(),
+
+            """self._observation = np.concatenate((self._cpg.get_r(),
                                                 self._cpg.get_dr(),
                                                 self._cpg.get_theta(),
                                                 self._cpg.get_dtheta(),
                                                 self.robot.GetBaseOrientationRollPitchYaw(),
                                                 self.robot.GetContactInfo()[2],
-                                                self.robot.GetBaseOrientation()))
-
+                                                self.robot.GetBaseOrientation()))"""
 
         else:
             raise ValueError("observation space not defined or not intended")
@@ -378,6 +445,10 @@ class QuadrupedGymEnv(gym.Env):
 
     def _reward_flag_run(self):
         """ Learn to move towards goal location. """
+        
+        if self._reward_flag_run_fn is not None:
+            return self._reward_flag_run_fn(self)
+
         des_vel = 2
         goal_vec = self._goal_location
         base_pos = self.robot.GetBasePosition()
@@ -433,7 +504,6 @@ class QuadrupedGymEnv(gym.Env):
         # Current velocity and orientation
         current_velocity = self.robot.GetBaseLinearVelocity()[:2]  # Get x, y components
         direction_reward = direction_reward_weight * np.dot(unit_vector(current_velocity), np.array([1.0, 0.0]))
-
 
         # don't drift laterally
         drift_reward = -0.025 * abs(self.robot.GetBasePosition()[1])
