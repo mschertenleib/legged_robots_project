@@ -45,23 +45,30 @@ from matplotlib import pyplot as plt
 from env.hopf_network import HopfNetwork
 from env.quadruped_gym_env import QuadrupedGymEnv
 
-
 PLOT = True
 SAVEFIG = False
-TEST_DURATION = 3
+TEST_DURATION = 4
 TIME_STEP = 0.001
 
-ADD_CARTESIAN_PD = False
+ADD_CARTESIAN_PD = True
 POSTURECTRL = False
-RAMPSPD = False
 
 foot_y = 0.0838  # this is the hip length
 sideSign = np.array([-1, 1, -1, 1])  # get correct hip sign (body right is negative)
-rmass = 12 # A1 mass in kg
-
+rmass = 15 # A1 mass in kg
 hspdavg = 0
 hspdh = np.zeros(1000) #avg of speed past 1 sec
 hspdidx = 0
+
+# joint PD gains
+kp = np.array([0, 0, 0])
+kd = np.array([0, 0, 0])
+# Cartesian PD gains
+kpCartesian = np.diag([1200,1200,1200])
+kdCartesian = np.diag([20,20,20])
+# posture control
+pKp = np.diag([100,100,10])
+yxzshift = [0,0,0]
 
 env = QuadrupedGymEnv(render=True,  # visualize
                       on_rack=False,  # useful for debugging!
@@ -82,10 +89,9 @@ t = np.arange(TEST_STEPS) * TIME_STEP
 gait = "TROT"
 
 if gait == "TROT":
-    stepfreq = 12
-    if RAMPSPD:
-        stepfreq = 10
-    ratio = 0.3
+    stepfreq = 14
+    duty_ratio = 2
+    ratio = 1/(duty_ratio + 1)
     cpg = HopfNetwork(time_step=TIME_STEP,
                       gait=gait,
                       des_step_len=0.05,
@@ -117,11 +123,16 @@ elif gait == "BOUND":
                       omega_stance= stepfreq*(ratio) * 2 * np.pi,
                       )
 elif gait == "WALK":
+    duty_ratio = 3
+    stepfreq = 1
+    ratio = 1/(duty_ratio + 1)
+
     cpg = HopfNetwork(time_step=TIME_STEP,
                       gait=gait,
                       mu=3,
-                      omega_swing=10 * 2 * np.pi,
-                      omega_stance=5 * 2 * np.pi)
+                      des_step_len=0.05,
+                      omega_swing= stepfreq*(1-ratio) * 2 * np.pi,
+                      omega_stance= stepfreq*(ratio) * 2 * np.pi)
 elif gait == "PRONK":
     cpg = HopfNetwork(time_step=TIME_STEP,
                       gait=gait,
@@ -136,6 +147,7 @@ else:
 
 if PLOT:
     joint_pos = np.zeros((12, TEST_STEPS))
+    des_joint_pos = np.zeros((12, TEST_STEPS))
     cpg_states = np.zeros((16,TEST_STEPS))
     foots_coord = np.zeros((12,TEST_STEPS))
     cpg_coord = np.zeros((8,TEST_STEPS))
@@ -143,18 +155,6 @@ if PLOT:
     spd = np.zeros((3,TEST_STEPS))
     Cot = np.zeros(TEST_STEPS)
 
-############## Sample Gains
-# joint PD gains
-kp = np.array([100, 100, 100])
-kd = np.array([2, 2, 2])
-# Cartesian PD gains
-kpCartesian = np.diag([1200] * 3)
-kdCartesian = np.diag([20] * 3)
-# posture control
-pKp = np.diag([100,100,10])
-yxzshift = [1,2,1]
-#speed control
-spdfact = 1
 
 for j in range(TEST_STEPS):
     # initialize torque array to send to motors
@@ -179,6 +179,8 @@ for j in range(TEST_STEPS):
             leg_xyz = np.array([xs[i], sideSign[i] * foot_y, zs[i]])
         # call inverse kinematics to get corresponding joint angles (see ComputeInverseKinematics() in quadruped.py)
         leg_q = env.robot.ComputeInverseKinematics(i, leg_xyz)
+        if PLOT:
+            des_joint_pos[3*i:3*i+3,j] = leg_q[:]
         # Add joint PD contribution to tau for leg i (Equation 4)
         tau += kp * (leg_q - q[i * 3:i * 3 + 3]) + kd * (-dq[i * 3:i * 3 + 3])
 
@@ -199,62 +201,55 @@ for j in range(TEST_STEPS):
             leg_corr_xyz = leg_xyz + [-foot_pos[2]*np.tan(ori[1])*yxzshift[0],foot_pos[2]*np.tan(ori[0])*yxzshift[1],zcont*yxzshift[2]]
             tau += np.transpose(J) @ (pKp @ (leg_corr_xyz - foot_pos))
 
-        if RAMPSPD:
-            spx = env.robot.GetBaseLinearVelocity()[0]
-            cspdest = cpg._mu*cpg._des_step_len*cpg._omega_stance
-            print((cspdest - spx))
-            stepfreq += spdfact*(cspdest - spx)
-            cpg._omega_swing= stepfreq*(1-ratio) * 2 * np.pi
-            cpg._omega_stance= stepfreq*(ratio) * 2 * np.pi
-
         # Set tau for legi in action vector
         action[3 * i : 3 * i + 3] = tau
 
-        if PLOT:
-            energy[j] = abs(np.dot(env.robot.GetMotorTorques(),dq))
-            spd[:,j] = env.robot.GetBaseLinearVelocity()
-            Cot[j] = (energy[j]*TIME_STEP)/(np.linalg.norm(spd[:,j])*TIME_STEP*rmass)
-            hspdh[hspdidx] = np.linalg.norm(spd[0:2,j])
-            hspdidx = hspdidx+1 if hspdidx+1<1000 else 0
-            hspdavg = np.mean(hspdh)
-            joint_pos[:, j] = q
-            cpg_states[0:4,j] = cpg.get_r()
-            cpg_states[4:8,j] = cpg.get_theta()
-            cpg_states[8:12,j] = cpg.get_dr()
-            cpg_states[12:16,j] = cpg.get_dtheta()
-            cpg_coord[:,j] = np.reshape([xs,zs],(8,))
-            _,rpos = env.robot.ComputeJacobianAndPosition(0)
-            foots_coord[0:3,j] = rpos
-            _,rpos = env.robot.ComputeJacobianAndPosition(1)
-            foots_coord[3:6,j] = rpos
-            _,rpos = env.robot.ComputeJacobianAndPosition(2)
-            foots_coord[6:9,j] = rpos
-            _,rpos = env.robot.ComputeJacobianAndPosition(3)
-            foots_coord[9:12,j] = rpos
+    if PLOT:
+        energy[j] = abs(np.dot(env.robot.GetMotorTorques(),dq))
+        spd[:,j] = env.robot.GetBaseLinearVelocity()
+        Cot[j] = (energy[j]*TIME_STEP)/(np.linalg.norm(spd[:,j])*TIME_STEP*rmass)
+        hspdh[hspdidx] = np.linalg.norm(spd[0:2,j])
+        hspdidx = hspdidx+1 if hspdidx+1<1000 else 0
+        hspdavg = np.mean(hspdh)
+        joint_pos[:, j] = q
+        cpg_states[0:4,j] = cpg.get_r()
+        cpg_states[4:8,j] = cpg.get_theta()
+        cpg_states[8:12,j] = cpg.get_dr()
+        cpg_states[12:16,j] = cpg.get_dtheta()
+        cpg_coord[:,j] = np.reshape([xs,zs],(8,))
+        _,rpos = env.robot.ComputeJacobianAndPosition(0)
+        foots_coord[0:3,j] = rpos
+        _,rpos = env.robot.ComputeJacobianAndPosition(1)
+        foots_coord[3:6,j] = rpos
+        _,rpos = env.robot.ComputeJacobianAndPosition(2)
+        foots_coord[6:9,j] = rpos
+        _,rpos = env.robot.ComputeJacobianAndPosition(3)
+        foots_coord[9:12,j] = rpos
 
     # send torques to robot and simulate TIME_STEP seconds
     env.step(action)
-    
-print('\033[91m' + "##### FINAL SPEED = {} #####".format(hspdavg) + '\033[0m')
+
+if PLOT: 
+    print('\033[91m' + "##### FINAL SPEED = {} #####".format(hspdavg) + '\033[0m')
 
 #####################################################
 # PLOTS
 #####################################################
 
 if PLOT:
-
-    # plt.figure()
-    # plt.plot(t, joint_pos[3 * 0 + 1, :], label='FR thigh')
-    # plt.plot(t, joint_pos[3 * 1 + 1, :], label='FL thigh')
-    # plt.plot(t, joint_pos[3 * 2 + 1, :], label='RR thigh')
-    # plt.plot(t, joint_pos[3 * 3 + 1, :], label='RL thigh')
-    # plt.legend()
-    # plt.figure()
-    # plt.plot(t, joint_pos[3 * 0 + 0, :], label='FR hip')
-    # plt.plot(t, joint_pos[3 * 0 + 1, :], label='FR thigh')
-    # plt.plot(t, joint_pos[3 * 0 + 2, :], label='FR calf')
-    # plt.legend()
-    # plt.show()
+    if False: #joint pos
+        plt.figure()
+        plt.plot(t, joint_pos[3 * 0 + 1, :], label='FR thigh')
+        plt.plot(t, joint_pos[3 * 1 + 1, :], label='FL thigh')
+        plt.plot(t, joint_pos[3 * 2 + 1, :], label='RR thigh')
+        plt.plot(t, joint_pos[3 * 3 + 1, :], label='RL thigh')
+        plt.legend()
+        plt.figure()
+        plt.plot(t, joint_pos[3 * 0 + 0, :], label='FR hip')
+        plt.plot(t, joint_pos[3 * 0 + 1, :], label='FR thigh')
+        plt.plot(t, joint_pos[3 * 0 + 2, :], label='FR calf')
+        plt.legend()
+        plt.show()
 
     
     if False: #Cot speed
@@ -278,7 +273,32 @@ if PLOT:
         plt.tight_layout()  
         plt.show()
 
-    if True: # foot pos
+    if False: # joint tracking
+        fig, ax = plt.subplots(3, 1, figsize=(8, 6))  # Adjust the figure size as needed
+        fig.suptitle("Joint Positions: {} \n PD kp: {}, kd: {}\n cart PD ckp: {} ckd: {}".format(gait,kp,kd,kpCartesian.diagonal(),kdCartesian.diagonal()))
+        
+        plots = [
+            ('Hip', 0),
+            ('Thigh', 1),
+            ('Calf', 2),
+        ]
+
+        for title, idx in plots:
+            axis = ax[idx]
+            axis.plot(t,joint_pos[idx], label='sim')
+            axis.plot(t,des_joint_pos[idx],'--',label='ref',color='#55555555')
+            axis.set_title(title)
+            axis.set_ylabel("angle [rad]")
+            #axis.sharex(ax[idx-1]) if idx<0 else axis.sharex(ax[0])
+            axis.sharey(ax[idx-1]) if idx<0 else axis.sharey(ax[0])
+            axis.legend()
+
+        ax[2].set_xlabel("time [s]")
+
+        plt.tight_layout()
+        plt.show()
+
+    if False: # foot pos
         fig, ax = plt.subplots(2, 2, figsize=(10, 8))  # Adjust the figure size as needed
         fig.suptitle("Foot Positions: {} \n PD kp: {}, kd: {} \n Cart PD kp: {}, kd: {}".format(gait,kp[0],kd[0],kpCartesian[0][0],kdCartesian[0][0]))
 
