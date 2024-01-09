@@ -62,9 +62,10 @@ else:
 
 if LOAD_NN:
     interm_dir = "./logs/intermediate_models/"
-    log_dir = interm_dir + ''  # add path
+    log_dir = interm_dir + '123023181704'  # add path
     stats_path = os.path.join(log_dir, "vec_normalize.pkl")
-    model_name = get_latest_model(log_dir)
+    #model_name = get_latest_model(log_dir)
+    model_name = os.path.join(log_dir,r"rl_model.zip")
 
 # directory to save policies and normalization parameters
 SAVE_PATH = './logs/intermediate_models/' + datetime.now().strftime("%m%d%y%H%M%S") + '/'
@@ -78,12 +79,12 @@ env = make_vec_env(env, monitor_dir=SAVE_PATH, n_envs=NUM_ENVS)
 env = VecNormalize(env, norm_obs=True, norm_reward=False, clip_obs=100.)
 
 if LOAD_NN:
-    env = lambda: QuadrupedGymEnv()
+    env = lambda: QuadrupedGymEnv(**env_configs)
     env = make_vec_env(env, n_envs=NUM_ENVS)
     env = VecNormalize.load(stats_path, env)
 
 # Multi-layer perceptron (MLP) policy of two layers of size _,_ 
-policy_kwargs = dict(net_arch=[256, 256])
+policy_kwargs = dict(net_arch=[256, 256, 256])
 # What are these hyperparameters? Check here: https://stable-baselines3.readthedocs.io/en/master/modules/ppo.html
 n_steps = 4096
 learning_rate = lambda f: 1e-4
