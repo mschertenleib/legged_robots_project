@@ -48,7 +48,7 @@ from utils.file_utils import get_latest_model
 from utils.utils import CheckpointCallback
 
 PARAMS_FROM_FILE = True
-PARAMS_FILE = "params_bellegarda_flagrun_directiondsdasdsafdas"
+PARAMS_FILE = "params_simple_direction"
 if PARAMS_FROM_FILE:
     params = importlib.import_module(PARAMS_FILE)
     LEARNING_ALG = params.LEARNING_ALG
@@ -112,7 +112,7 @@ ppo_config = {"gamma": 0.99,
               "max_grad_norm": 0.5,
               "gae_lambda": 0.95,
               "batch_size": 128,
-              "n_epochs": 10,
+              "n_epochs": 20,
               "clip_range": 0.2,
               "clip_range_vf": 1,
               "verbose": 1,

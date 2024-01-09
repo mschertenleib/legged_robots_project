@@ -7,7 +7,7 @@ def reward_flag_run(self: QuadrupedGymEnv):
 
     distance_to_goal, angle_to_goal = self.get_distance_and_angle_to_goal()
 
-    reward_forward = 10.0 * (self._prev_pos_to_goal - distance_to_goal) / self._time_step
+    reward_forward = 1.0 * (self._prev_pos_to_goal - distance_to_goal) / self._time_step
     reward_roll_pitch = -5.0 * np.dot(roll_pitch, roll_pitch)
     reward_z = -4.0 * vel_z ** 2
     reward_energy = 0.0
@@ -22,7 +22,6 @@ def reward_flag_run(self: QuadrupedGymEnv):
 
     """print(
         f"{reward_forward:.4f} "
-        f"{reward_lateral:.4f} "
         f"{reward_roll_pitch:.4f} "
         f"{reward_z:.4f} "
         f"{reward_energy:.4f} ")"""
@@ -31,9 +30,9 @@ def reward_flag_run(self: QuadrupedGymEnv):
 
 
 LEARNING_ALG = "PPO"
-LOG_DIR_NAME = "simple_tracking_delta"
+LOG_DIR_NAME = "simple_delta_default"
 env_config = {"motor_control_mode": "PD",
               "task_env": "FLAGRUN",
-              "observation_space_mode": "LR_COURSE_OBS",
+              "observation_space_mode": "DEFAULT",
               "test_env": False,
               "reward_flag_run": reward_flag_run}

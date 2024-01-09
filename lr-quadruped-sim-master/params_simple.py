@@ -27,12 +27,12 @@ def reward_flag_run(self: QuadrupedGymEnv):
               + reward_z
               + reward_energy)
 
-    """print(
+    print(
         f"{reward_forward:.4f} "
         f"{reward_lateral:.4f} "
         f"{reward_roll_pitch:.4f} "
         f"{reward_z:.4f} "
-        f"{reward_energy:.4f} ")"""
+        f"{reward_energy:.4f} ")
 
     return reward
 

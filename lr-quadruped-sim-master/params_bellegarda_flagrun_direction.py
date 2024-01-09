@@ -32,7 +32,7 @@ def reward_flag_run(self: QuadrupedGymEnv):
 
 
 LEARNING_ALG = "PPO"
-LOG_DIR_NAME = "bellegarda_flagrun_direction"
+LOG_DIR_NAME = "bellegarda_direction_ppo"
 env_config = {"motor_control_mode": "CARTESIAN_PD",
               "task_env": "FLAGRUN",
               "observation_space_mode": "LR_COURSE_OBS",
