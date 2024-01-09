@@ -39,9 +39,9 @@ def reward_flag_run(self: QuadrupedGymEnv):
 
 
 LEARNING_ALG = "PPO"
-LOG_DIR_NAME = "simple_direction_default"
+LOG_DIR_NAME = "simple_direction_course"
 env_config = {"motor_control_mode": "PD",
               "task_env": "FLAGRUN",
-              "observation_space_mode": "DEFAULT",
+              "observation_space_mode": "LR_COURSE_OBS",
               "test_env": False,
               "reward_flag_run": reward_flag_run}
