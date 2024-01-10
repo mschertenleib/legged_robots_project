@@ -50,7 +50,8 @@ SAVEFIG = False
 TEST_DURATION = 4
 TIME_STEP = 0.001
 
-ADD_CARTESIAN_PD = True
+ADD_CARTESIAN_PD = False
+JOINT_PD = True
 POSTURECTRL = False
 
 foot_y = 0.0838  # this is the hip length
@@ -61,11 +62,11 @@ hspdh = np.zeros(1000) #avg of speed past 1 sec
 hspdidx = 0
 
 # joint PD gains
-kp = np.array([0, 0, 0])
-kd = np.array([0, 0, 0])
+kp = np.array([100, 100, 100])
+kd = np.array([2, 2, 2])
 # Cartesian PD gains
-kpCartesian = np.diag([1200,1200,1200])
-kdCartesian = np.diag([20,20,20])
+kpCartesian = np.diag([1200,400,1200])
+kdCartesian = np.diag([20,4,20])
 # posture control
 pKp = np.diag([100,100,10])
 yxzshift = [0,0,0]
@@ -86,14 +87,15 @@ cpg = HopfNetwork(time_step=TIME_STEP)
 TEST_STEPS = int(TEST_DURATION / TIME_STEP)
 t = np.arange(TEST_STEPS) * TIME_STEP
 
-gait = "TROT"
+gait = "FAST_BOUND"
 
 if gait == "TROT":
-    stepfreq = 14
+    stepfreq = 8
     duty_ratio = 2
     ratio = 1/(duty_ratio + 1)
     cpg = HopfNetwork(time_step=TIME_STEP,
                       gait=gait,
+                      mu= 1,
                       des_step_len=0.05,
                       omega_swing= stepfreq*(1-ratio) * 2 * np.pi,
                       omega_stance= stepfreq*(ratio) * 2 * np.pi)
@@ -108,15 +110,15 @@ elif gait == "FAST_BOUND":
     stepfreq = 10
     ratio = 0.65
     cpg = HopfNetwork(time_step=TIME_STEP,
-                      gait=gait,
+                      gait="BOUND",
                       ground_penetration=0.005, 
                       des_step_len=0.13,
                       omega_swing= stepfreq*(1-ratio) * 2 * np.pi,
                       omega_stance= stepfreq*(ratio) * 2 * np.pi,
                       )
 elif gait == "BOUND":
-    stepfreq = 8.3
-    ratio = 0.2
+    stepfreq = 8.2
+    ratio = 0.5
     cpg = HopfNetwork(time_step=TIME_STEP,
                       gait=gait,
                       omega_swing= stepfreq*(1-ratio) * 2 * np.pi,
@@ -181,8 +183,10 @@ for j in range(TEST_STEPS):
         leg_q = env.robot.ComputeInverseKinematics(i, leg_xyz)
         if PLOT:
             des_joint_pos[3*i:3*i+3,j] = leg_q[:]
-        # Add joint PD contribution to tau for leg i (Equation 4)
-        tau += kp * (leg_q - q[i * 3:i * 3 + 3]) + kd * (-dq[i * 3:i * 3 + 3])
+        
+        if JOINT_PD:
+            # Add joint PD contribution to tau for leg i (Equation 4)
+            tau += kp * (leg_q - q[i * 3:i * 3 + 3]) + kd * (-dq[i * 3:i * 3 + 3])
 
         # add Cartesian PD contribution
         if ADD_CARTESIAN_PD:
