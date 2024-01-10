@@ -59,7 +59,7 @@ from utils.utils import plot_results
 from utils.file_utils import get_latest_model, load_all_results
 
 PARAMS_FROM_FILE = True
-PARAMS_FILE = "params_simple_direction"
+PARAMS_FILE = "params_bellegarda_straight"
 if PARAMS_FROM_FILE:
     params = importlib.import_module(PARAMS_FILE)
     LEARNING_ALG = params.LEARNING_ALG
@@ -83,7 +83,7 @@ GRAVITY = 9.81
 
 env_config['render'] = True
 env_config['record_video'] = False
-env_config['add_noise'] = False
+env_config['add_noise'] = True
 env_config['competition_env'] = False
 
 # get latest model and normalization stats, and plot 
@@ -114,24 +114,24 @@ print("\nLoaded model", model_name, "\n")
 obs = env.reset()
 episode_reward = 0
 
-# [TODO] initialize arrays to save data from simulation 
-#
+
 velocity = []
 CoT = []
+foot_pos = []
 
 
-for i in range(2000):
-    action, _states = model.predict(obs,deterministic=False) # sample at test time? ([TODO]: test)
-    #print('action', action.shape)
+for i in range(200):
+    action, _states = model.predict(obs,deterministic=False)  # sample at test time? ([TODO]: test)
+    # print('action', action.shape)
     obs, rewards, dones, info = env.step(action)
     episode_reward += rewards
     if dones:
         print('episode_reward', episode_reward)
         print('Final base position', info[0]['base_pos'])
         episode_reward = 0
-    #Velocity calculation
-    velocity.append(env.envs[0].env.robot.GetBaseLinearVelocity()[0])
-    #CoT calculation
+    # Velocity calculation
+    velocity.append(env.envs[0].env.robot.GetBaseLinearVelocity()[0:2])
+    # CoT calculation
     masses = 0
     for mass in env.envs[0].env.robot.GetTotalMassFromURDF():
       masses += mass
@@ -139,17 +139,39 @@ for i in range(2000):
     Velocity = env.envs[0].env.robot.GetMotorVelocities()
     cot_local = np.dot(Torque_abs,np.abs(Velocity))/(np.linalg.norm(Torque_abs) * masses * GRAVITY)
     CoT.append(cot_local)
+    # Foot trajectory
+    foot_pos.append(env.envs[0].env.robot.GetMotorAngles())
 
-# [TODO] make plots:
+velocity = np.array(velocity)
+foot_pos = np.array(foot_pos)
 
-plt.figure()
-plt.plot(velocity)
-plt.xlabel('time')
-plt.ylabel('velocity')
+fig, ax = plt.subplots()
+ax.plot(velocity[:, 0], label='vx')
+ax.plot(velocity[:, 1], label='vy')
+ax.legend()
+plt.xlabel('Time [samples]')
+plt.ylabel('Velocity [m/s]')
 plt.show()
 
 plt.figure()
 plt.plot(CoT)
-plt.xlabel('Time')
+plt.xlabel('Time [samples]')
 plt.ylabel('CoT')
+plt.show()
+
+fig, axs = plt.subplots(3, 1)
+fig.suptitle('Joint Angles')
+titles = ['Hip', 'Thigh', 'Calf']
+legs = ['FR', 'FL', 'RR', 'RL']
+for i in range(3):
+    ax = axs[i]
+    ax.set(ylabel=titles[i] + ' [rad]')
+    if i < 2:
+        ax.tick_params('x', labelbottom=False)
+    else:
+        ax.set(xlabel='Time [samples]')
+    for j in range(4):
+        ax.plot(foot_pos[:, j * 3 + i], label=legs[j])
+    ax.legend()
+plt.tight_layout()
 plt.show()

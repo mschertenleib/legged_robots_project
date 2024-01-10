@@ -54,15 +54,9 @@ def reward_flag_run(self: QuadrupedGymEnv):
 
 
 LEARNING_ALG = "PPO"
-LOG_DIR_NAME = "spin2"
+LOG_DIR_NAME = "spin"
 env_config = {"motor_control_mode": "PD",
               "task_env": "FLAGRUN",
               "observation_space_mode": "DEFAULT",
               "test_env": False,
               "reward_flag_run": reward_flag_run}
-
-# NOTE: the observation space includes:
-# - Motor angles
-# - Motor velocities,
-# - Base roll and pitch,
-# - Binary feet contacts
