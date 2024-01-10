@@ -59,7 +59,7 @@ from utils.utils import plot_results
 from utils.file_utils import get_latest_model, load_all_results
 
 PARAMS_FROM_FILE = True
-PARAMS_FILE = "params_bellegarda_straight"
+PARAMS_FILE = "params_simple_yaw"
 if PARAMS_FROM_FILE:
     params = importlib.import_module(PARAMS_FILE)
     LEARNING_ALG = params.LEARNING_ALG
